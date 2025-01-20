@@ -1,4 +1,4 @@
-function [xConfidence, yConfidence,fitting_coefs] = regression_confidence(Xdata, Ydata, confidence, fidelity)
+function [xConfidence, yConfidence,m,b] = regression_confidence(Xdata, Ydata, confidence, fidelity)
     if nargin < 3
         confidence = 0.95;
     end
@@ -25,5 +25,6 @@ function [xConfidence, yConfidence,fitting_coefs] = regression_confidence(Xdata,
     xConfidence = linspace(min(Xdata), max(Xdata), fidelity);
     xModifier = sqrt(2 * Fval * Variance) * sqrt((1 / k) + ((xConfidence - XMean).^2) / SDMX);
     yConfidence = intercept + slope * xConfidence - xModifier;
-    fitting_coefs = coeffs;
+    m = coeffs(1);
+    b=coeffs(2);
 end

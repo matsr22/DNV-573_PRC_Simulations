@@ -15,7 +15,8 @@ function result = HammerStress(d, v, Z_c, Z_l, Z_s, alpha, c_c, c_l, h_c)
     % Returns:
     %     _type_: _description_
 
-    result = ((1 + Z_frac(Z_s, Z_c)) ./ (1 - Z_frac(Z_s, Z_c) .* Z_frac(Z_l, Z_c))) .* (1- Z_frac(Z_s, Z_c).*((1 + Z_frac(Z_l, Z_c)) ./ (1 + Z_frac(Z_s, Z_c))).*((1 - exp(-Theta(d, Z_c, Z_l, Z_s, c_c, c_l, h_c))) ./ Theta(d, Z_c, Z_l, Z_s, c_c, c_l, h_c))) .* HammerPressure(Z_l, Z_c, alpha, v);
+
+    result = ((1 + Z_frac(Z_s, Z_c)) / (1 - Z_frac(Z_s, Z_c) * Z_frac(Z_l, Z_c))) .* (1- Z_frac(Z_s, Z_c)*((1 + Z_frac(Z_l, Z_c)) / (1 + Z_frac(Z_s, Z_c))).*((1 - exp(-1*Theta(d, Z_c, Z_l, Z_s, c_c, c_l, h_c))) ./ Theta(d, Z_c, Z_l, Z_s, c_c, c_l, h_c))) .* HammerPressure(Z_l, Z_c, alpha, v);
 end
 
 

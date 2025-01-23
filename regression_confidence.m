@@ -25,6 +25,9 @@ function [xConfidence, yConfidence,m,b] = regression_confidence(Xdata, Ydata, co
     xConfidence = linspace(min(Xdata), max(Xdata), fidelity);
     xModifier = sqrt(2 * Fval * Variance) * sqrt((1 / k) + ((xConfidence - XMean).^2) / SDMX);
     yConfidence = intercept + slope * xConfidence - xModifier;
-    m = coeffs(1);
-    b=coeffs(2);
+
+    xConfidence = 10.^xConfidence;
+    yConfidence = 10.^yConfidence;
+    m = -slope;
+    b=intercept;
 end

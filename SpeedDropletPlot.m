@@ -2,6 +2,7 @@
 
 function SpeedDropletPlot(x_bins,y_bins,data,graph_title)
 % Validate inputs
+
 if size(data, 1) ~= length(y_bins) - 1 || size(data, 2) ~= length(x_bins) - 1
     error('Size of data matrix must match the number of bins defined by x_bins and y_bins');
 end

@@ -1,4 +1,18 @@
 function [xConfidence, yConfidence,m,b] = regression_confidence(Xdata, Ydata, confidence, fidelity)
+    % Returns the V-N curve fit with a default 95/95 statistical approach. Returns in the non-log domain. Based on the statistical approach given by ASTM 739
+    %
+    % Args:
+    %   Xdata, Ydata (float vector): data from the V-N curve with V on the X axis and N on the Y
+    %   Confidence: The confidence any points will lie above the curve provided
+    %   fidelity: The number of points the output curve is defined as
+    %   
+    % Returns:
+    %   XConfidence,Yconfidence (float vectors): The output curve, with points to be interpolated
+    %   m,b: The linear fitting coefficents of the log log data. In the form log(N) = b-m*log*(V)
+    %
+    %
+    %
+
     if nargin < 3
         confidence = 0.95;
     end
@@ -6,6 +20,7 @@ function [xConfidence, yConfidence,m,b] = regression_confidence(Xdata, Ydata, co
         fidelity = 200;
     end
 
+    % Switch to log domain
     Xdata = log10(Xdata);
     Ydata = log10(Ydata);
 

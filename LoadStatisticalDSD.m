@@ -24,7 +24,7 @@ function [w_bins,d_bins,w_mid,d_mid,matrix] = LoadStatisticalDSD(w_weibull_param
     a = @(R) 1.3*R.^0.232;
     k_B = 2.25;
 
-    best = @(D,R) (W(R)./V(D)) * ((K_B*D.^(K_B-1))/(a(R).^k_B))*exp(-(D/a(R)).^k_B);
+    best = @(D,R) (W(R)./V(D)) * ((k_B*D.^(k_B-1))/(a(R).^k_B))*exp(-(D/a(R)).^k_B);
 
     if length(rainfall) == 3
         total_rainfall = rainfall(1);
@@ -46,14 +46,14 @@ function [w_bins,d_bins,w_mid,d_mid,matrix] = LoadStatisticalDSD(w_weibull_param
 
     w_bins = linspace(0,w_max,w_fidelity);
     d_bins = linspace(0,d_max,d_fidelity);
-    w_mid = 0.5*w_bins(1:(length(w_bins)-1))*w_bins(2:end);
-    d_mid = 0.5*d_bins(1:(length(d_bins)-1))*d_bins(2:end);
+    w_mid = 0.5*w_bins(1:(length(w_bins)-1)).*w_bins(2:end);
+    d_mid = 0.5*d_bins(1:(length(d_bins)-1)).*d_bins(2:end);
 
 
     matrix = zeros((length(d_bins)-1),(length(w_bins)-1));
     for i = 1:(length(d_bins)-1)
         for x = 1:(length(w_bins)-1)
-            matrix(i,x) = integral2(droplet_fdf,w_bins(x),w_bins(x+1),d_bins(i),d_bins(i+1));
+            matrix(i,x) = integral2(@(v,D) droplet_fdf(v,D),w_bins(x),w_bins(x+1),d_bins(i),d_bins(i+1));
         end
     end
 end

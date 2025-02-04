@@ -9,8 +9,10 @@ function [w_bins,d_bins,w_mid,d_mid,matrix] = LoadMeasuredDSD(fileName)
 
     % The loaded matlab file must have Map, WindRange and dropSizes as its variable names 
 
-    load(fileName);
-
+    vars = load(fileName);
+    WindRange = vars.WindRange;
+    dropSizes = vars.dropSizes;
+    Map = vars.Map;
     matrix = Map;
     matSize = size(matrix);
 

@@ -44,5 +44,5 @@ function [xConfidence, yConfidence,m,b] = regression_confidence(Xdata, Ydata, co
     xConfidence = 10.^xConfidence;
     yConfidence = 10.^yConfidence;
     m = -slope;
-    b=intercept;
+    b=exp(intercept);
 end

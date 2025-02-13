@@ -14,6 +14,7 @@ hold on;
 % Generate patches for each bin
 colormap('turbo'); 
 clim([min(data(:)), max(data(:))]); % Set color scaling
+set(gca, 'YDir', 'reverse');
 
 for i = 1:length(x_bins)-1
     for j = 1:length(y_bins)-1

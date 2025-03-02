@@ -28,7 +28,7 @@ function [w_bins,d_bins,w_mid,d_mid,matrix] = LoadMeasuredDSD(fileName)
         WindRange = [WindRange WindRange(length(WindRange))+1];
     end
     if(matSize(2) == length(dropSizes))
-        dropSizes = [0 dropSizes];
+        dropSizes = [0 dropSizes ];
     end
 
 

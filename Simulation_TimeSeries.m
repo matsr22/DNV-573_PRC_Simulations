@@ -4,65 +4,113 @@ clc
 close all
 
 % Load in time series data:
-DT = 30; % Time step of the data expressed in minutes
-structure = struct2cell(load(append("Simulation_Data\Time_Series\data",string(DT),"min_filt.mat")));
+DT = 10; % Time step of the data expressed in minutes
+importedStructure = struct2cell(load(append("Simulation_Data\Time_Series\data",string(DT),"min_filt.mat")));
 
-timeData = structure{1};
-d_bins = structure{2};
-w_bins = structure{3};
+timeData = importedStructure{1};
+d_bins = [importedStructure{2} 10.5];
+terminal_v_bins = [0 importedStructure{3} 11];
+
+%Find the start and stop indexes:
+t_vals = timeData{:,"dateTime"};
+timeData = RestructureTable(timeData);
+
+
+% Generates a vector of the variables of the joint 
 for x = 1:440
     svdIndexing(x) = append("svd_",string(x-1));
 end
 
+
 svd = timeData{:,svdIndexing};
 svdSize = size(svd);
-svd = reshape(svd', 20, 22, svdSize(1));  
-
-Dm = [0.1875, 0.3125, 0.4375, 0.625, 0.875, 1.125, 1.375, 1.625,1.875, 2.25, 2.75, 3.25, 3.75, 4.25, 4.75, 5.25, 5.75, 6.25, 6.75,7.25, 7.75, 9];
-w_bins = [0,w_bins]; % Correction as the current bins are not correct
-Wm = [((w_bins(1:end-1)+w_bins(2:end))/2) 11];
+svd = reshape(svd', 20, 22, svdSize(1));  % Gives a matrix with terminal velocities on the first axis and Droplet diameters on the second
 
 
 
-Vm = WindToVelocity(Wm,'Simulation_Data\RENER2024\wind_omega_5MW.mat',63);% Converts the wind speed to tip speed for use in the simulation
+% The diameters and velocities assosiated with each of the bins in svd 
+Dm = (d_bins(1:(end-1)) + d_bins(2:end))./2;
 
+Vm = (terminal_v_bins(1:(length(terminal_v_bins)-1)) + terminal_v_bins(2:length(terminal_v_bins)))./2;
+
+% Wind speed at each timestep
+windVelocities = timeData{:,"wind_avg"};
+
+bladeVelocities = WindToVelocity(windVelocities,"Simulation_Data\RENER2024\wind_omega_5MW.mat",63);
+
+% Create matrix of number of droplets incident per m^2
 A = 0.0046; % area in m^2
-t_vals = 1:svdSize(1);
-[d_grid,v_grid,t_grid] = meshgrid(Dm,Vm,t_vals);
-size(d_grid)
-size(svd)
-v3 = 9.65-10.3*exp(-0.6*d_grid);% Atlas e Ulbrich, 1973 (fit to the data
-svd = svd./(A.*(DT*60).*v3);
 
-allowed_impingements = CalculateAllowedImp(v_grid,d_grid);
+[svd_diameters,svd_vels] = meshgrid(Dm,Vm);
 
 
 
-% Number of impacts on blade:
+svd = svd./(A.*1); % Area converts from Impacts to per m^2, then the terminal velocity of the drops gives per m^3 (Time ommited as it cancels later)
 
-svd = svd .* v_grid;
+n_s = sum(svd,1); % Sum across all droplet terminal velocities
+
+n_s = permute(n_s,[3 2 1]); % Remove droplet terminal velocity dimension
+
+n_s = n_s .* bladeVelocities; % Convert back to per m^2 with the blade velocities (Ensuring data is along correct axis)
 
 
-% Consider impingement efficency
+[diameter_mesh,blade_vel_mesh] = meshgrid(Dm,bladeVelocities);
 
-consider_impingement_efficency = true;
+computed_vals = ComputeSpringerRaw();
 
-if consider_impingement_efficency
-    svd = svd .* (1 - exp(-15*d_grid));
-end
+allowed_impingements = CalculateAllowedImp(computed_vals,blade_vel_mesh,diameter_mesh);
 
+damages = n_s./allowed_impingements;
+
+timeSeriesDamages = sum(damages,2);
+
+cumSumDamages = cumsum(timeSeriesDamages);
+
+tot_damage = sum(damages,'all');
 % Calculate Damage
 
-damage_grids = svd ./allowed_impingements;
 
-damage_series = sum(damage_grids,[1 2]);
-damage_series = permute(damage_series,[2,3,1]);
+%SpeedDropletPlot(velocity_bins,d_bins,log10(tot_impingements),"Incident Droplets");
 
-damage_cumsum = cumsum(damage_series);
 
-tot_damage = sum(damage_series);
-
-plot(damage_cumsum)
+plot(cumSumDamages);
 
 Hours  = (1/tot_damage)*365.24*24
+
+
+function newTable = RestructureTable(table)
+
+    t_vals = table{:,"dateTime"};
+    t_vals = datetime(t_vals);
+
+    % Find the indexes in the table that correspond to First time step of
+    % 10 October 2018 and last time step of 30 Sep 2019
+
+    targetStartYear = 2018;
+    targetStartMonth = 10;
+    startDayIndex = find(year(t_vals) == targetStartYear & month(t_vals) == targetStartMonth, 1, 'first');
+
+    
+    
+    targetEndYear = 2019;
+    targetEndMonth = 9;
+    targetEndDay = 30;
+    
+    endDayIndex = find(year(t_vals) == targetEndYear & month(t_vals) == targetEndMonth & day(t_vals) == targetEndDay , 1, 'last');
+
+    % Now fill in the missing data
+
+    % In the RENER24 Paper, data is described as missing between the 22nd
+    % and 26th of Sep 2019. This is accurate
+    % However it says to fill in use the corresponding dates in 2017. This
+    % data also does not exist.
+
+    % For now I will ignore and discuss with sergio. 
+
+
+    
+    newTable = table(startDayIndex:endDayIndex,:);
+
+
+end
 

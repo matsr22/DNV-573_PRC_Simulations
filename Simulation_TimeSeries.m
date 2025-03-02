@@ -5,11 +5,11 @@ close all
 
 % Load in time series data:
 DT = 10; % Time step of the data expressed in minutes
-importedStructure = struct2cell(load(append("Simulation_Data\Time_Series\data",string(DT),"min_filt.mat")));
-
+%importedStructure = struct2cell(load(append("Simulation_Data\Time_Series\data",string(DT),"min_filt.mat")));
+importedStructure = struct2cell(load(append("Simulation_Data\Time_Series\",string(DT),"min_data_flatten.mat")));
 timeData = importedStructure{1};
-d_bins = [importedStructure{2} 10.5];
-terminal_v_bins = [0 importedStructure{3} 11];
+d_bins = [importedStructure{2} ];
+terminal_v_bins = [importedStructure{3} 11];
 
 %Find the start and stop indexes:
 t_vals = timeData{:,"dateTime"};
@@ -36,6 +36,17 @@ Vm = (terminal_v_bins(1:(length(terminal_v_bins)-1)) + terminal_v_bins(2:length(
 % Wind speed at each timestep
 windVelocities = timeData{:,"wind_avg"};
 
+simplify_to_fdf = true; % Controls if the exact wind speed is used or if the same bins as used in the RENER joint FDF are used
+
+if simplify_to_fdf
+    [w_bins,d_bins,w_mids,d_mids] = LoadMeasuredDSD("Simulation_Data\RENER2024\myMap_turbine.mat");
+    [~, indices] = min(abs(windVelocities(:) - w_mids), [], 2);
+    windVelocities = w_mids(indices)';
+    windVelocitiesCopy = windVelocities;
+
+end
+
+
 bladeVelocities = WindToVelocity(windVelocities,"Simulation_Data\RENER2024\wind_omega_5MW.mat",63);
 
 % Create matrix of number of droplets incident per m^2
@@ -47,11 +58,11 @@ A = 0.0046; % area in m^2
 
 svd = svd./(A.*1); % Area converts from Impacts to per m^2, then the terminal velocity of the drops gives per m^3 (Time ommited as it cancels later)
 
-n_s = sum(svd,1); % Sum across all droplet terminal velocities
+n_droplets_air = sum(svd,1); % Sum across all droplet terminal velocities
 
-n_s = permute(n_s,[3 2 1]); % Remove droplet terminal velocity dimension
+n_droplets_air = permute(n_droplets_air,[3 2 1]); % Remove droplet terminal velocity dimension
 
-n_s = n_s .* bladeVelocities; % Convert back to per m^2 with the blade velocities (Ensuring data is along correct axis)
+n_s = n_droplets_air .* bladeVelocities; % Convert back to per m^2 with the blade velocities (Ensuring data is along correct axis)
 
 
 [diameter_mesh,blade_vel_mesh] = meshgrid(Dm,bladeVelocities);
@@ -72,8 +83,20 @@ tot_damage = sum(damages,'all');
 
 %SpeedDropletPlot(velocity_bins,d_bins,log10(tot_impingements),"Incident Droplets");
 
+% Re-construct FDF:
 
-plot(cumSumDamages);
+FDF = zeros(length(w_mids),length(d_mids));
+
+for x=1:length(w_mids)
+    rows = n_droplets_air(windVelocitiesCopy==w_mids(x),:);
+    FDF(x,:) = sum(rows,1);
+
+end
+
+SpeedDropletPlot(d_bins,log10(FDF),"FDF - created");
+
+
+%plot(cumSumDamages);
 
 Hours  = (1/tot_damage)*365.24*24
 

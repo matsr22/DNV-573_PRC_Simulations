@@ -1,0 +1,138 @@
+
+clear
+clc
+close all
+
+% Load in time series data:
+DT = 10; % Time step of the data expressed in minutes
+importedStructure = struct2cell(load(append("Simulation_Data\Time_Series\data",string(DT),"min_filt.mat")));
+
+timeData = importedStructure{1};
+d_bins = [0 importedStructure{2}];
+terminal_v_bins = [0 importedStructure{3} 11];
+
+%Find the start and stop indexes:
+t_vals = timeData{:,"dateTime"};
+timeData = RestructureTable(timeData);
+
+
+% Generates a vector of the variables of the joint 
+for x = 1:440
+    svdIndexing(x) = append("svd_",string(x-1));
+end
+
+
+svd = timeData{:,svdIndexing};
+svdSize = size(svd);
+svd = reshape(svd', 20, 22, svdSize(1));  % Gives a matrix with terminal velocities on the first axis and Droplet diameters on the second
+
+
+
+% The diameters and velocities assosiated with each of the bins in svd 
+Dm = (d_bins(1:(end-1)) + d_bins(2:end))./2;
+
+Vm = (terminal_v_bins(1:(length(terminal_v_bins)-1)) + terminal_v_bins(2:length(terminal_v_bins)))./2;
+
+% Wind speed at each timestep
+windVelocities = timeData{:,"wind_avg"};
+
+simplify_to_fdf = true; % Controls if the exact wind speed is used or if the same bins as used in the RENER joint FDF are used
+
+if simplify_to_fdf
+    [w_bins,d_bins,w_mids,d_mids] = LoadMeasuredDSD("Simulation_Data\RENER2024\myMap_turbine.mat");
+    [~, indices] = min(abs(windVelocities(:) - w_mids), [], 2);
+    windVelocities = w_mids(indices)';
+
+end
+
+
+bladeVelocities = WindToVelocity(windVelocities,"Simulation_Data\RENER2024\wind_omega_5MW.mat",63);
+
+% Create matrix of number of droplets incident per m^2
+A = 0.0046; % area in m^2
+
+[svd_diameters,svd_vels] = meshgrid(Dm,Vm);
+
+
+
+svd = svd./(A.*1); % Area converts from Impacts to per m^2, then the terminal velocity of the drops gives per m^3 (Time ommited as it cancels later)
+
+n_droplets_air = sum(svd,1); % Sum across all droplet terminal velocities
+
+n_droplets_air = permute(n_droplets_air,[3 2 1]); % Remove droplet terminal velocity dimension
+
+n_s = n_droplets_air .* bladeVelocities; % Convert back to per m^2 with the blade velocities (Ensuring data is along correct axis)
+
+
+[diameter_mesh,blade_vel_mesh] = meshgrid(Dm,bladeVelocities);
+
+computed_vals = ComputeSpringerRaw();
+
+allowed_impingements = CalculateAllowedImp(computed_vals,blade_vel_mesh,diameter_mesh);
+
+damages = n_s./allowed_impingements;
+
+timeSeriesDamages = sum(damages,2);
+
+cumSumDamages = cumsum(timeSeriesDamages);
+
+tot_damage = sum(damages,'all');
+% Calculate Damage
+
+
+%SpeedDropletPlot(velocity_bins,d_bins,log10(tot_impingements),"Incident Droplets");
+
+% Re-construct FDF:
+
+FDF = zeros(length(w_mids),length(d_mids));
+
+for x=1:length(w_mids)
+    rows = n_droplets_air(w_mids==w_mids(x),:);
+    FDF(x,:) = sum(rows,1);
+
+end
+
+SpeedDropletPlot(d_bins,FDF,"FDF - created");
+
+
+plot(cumSumDamages);
+
+Hours  = (1/tot_damage)*365.24*24
+
+
+function newTable = RestructureTable(table)
+
+    t_vals = table{:,"dateTime"};
+    t_vals = datetime(t_vals);
+
+    % Find the indexes in the table that correspond to First time step of
+    % 10 October 2018 and last time step of 30 Sep 2019
+
+    targetStartYear = 2018;
+    targetStartMonth = 10;
+    startDayIndex = find(year(t_vals) == targetStartYear & month(t_vals) == targetStartMonth, 1, 'first');
+
+    
+    
+    targetEndYear = 2019;
+    targetEndMonth = 9;
+    targetEndDay = 30;
+    
+    endDayIndex = find(year(t_vals) == targetEndYear & month(t_vals) == targetEndMonth & day(t_vals) == targetEndDay , 1, 'last');
+
+    % Now fill in the missing data
+
+    % In the RENER24 Paper, data is described as missing between the 22nd
+    % and 26th of Sep 2019. This is accurate
+    % However it says to fill in use the corresponding dates in 2017. This
+    % data also does not exist.
+
+    % For now I will ignore and discuss with sergio. 
+
+
+    
+    newTable = table(startDayIndex:endDayIndex,:);
+
+
+end
+

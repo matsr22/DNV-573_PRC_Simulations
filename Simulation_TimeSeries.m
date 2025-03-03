@@ -5,121 +5,103 @@ close all
 
 % Load in time series data:
 DT = 10; % Time step of the data expressed in minutes
-%importedStructure = struct2cell(load(append("Simulation_Data\Time_Series\data",string(DT),"min_filt.mat")));
-importedStructure = struct2cell(load(append("Simulation_Data\Time_Series\",string(DT),"min_data_flatten.mat")));
-timeData = importedStructure{1};
-d_bins = [importedStructure{2} ];
-terminal_v_bins = [importedStructure{3} 11];
 
-%Find the start and stop indexes:
-t_vals = timeData{:,"dateTime"};
-timeData = RestructureTable(timeData);
+imported_structure = struct2cell(load(append("Simulation_Data\Time_Series\",string(DT),"min_data_flatten.mat")));% Using the non-filtered data to match the joint FDF
+wind_droplet_table = imported_structure{1};
+d_bins = imported_structure{2};
+terminal_v_bins = [imported_structure{3} 100]; % The last index is added for the bin that exists to infinity. 
+
+wind_droplet_table = RestructureTable(wind_droplet_table); % Adjusts the table so that the correct time frame is used
 
 
-% Generates a vector of the variables of the joint 
+% Generates a vector of the variables of the joint size velocity
+% distribution indexes
 for x = 1:440
-    svdIndexing(x) = append("svd_",string(x-1));
+    svd_indexing(x) = append("svd_",string(x-1));
 end
 
-
-svd = timeData{:,svdIndexing};
+% Gets the collumns of the joint SVD from the table
+svd = wind_droplet_table{:,svd_indexing};
 svdSize = size(svd);
-svd = reshape(svd', 20, 22, svdSize(1));  % Gives a matrix with terminal velocities on the first axis and Droplet diameters on the second
+
+% Gives a matrix with terminal velocities on the first axis and droplet diameters on the second
+svd = reshape(svd', 20, 22, svdSize(1));  
 
 
 
 % The diameters and velocities assosiated with each of the bins in svd 
 Dm = (d_bins(1:(end-1)) + d_bins(2:end))./2;
 
-Vm = (terminal_v_bins(1:(length(terminal_v_bins)-1)) + terminal_v_bins(2:length(terminal_v_bins)))./2;
+Vm = (terminal_v_bins(1:(end-1)) + terminal_v_bins(2:end))./2;
 
 % Wind speed at each timestep
-windVelocities = timeData{:,"wind_avg"};
+wind_velocities = wind_droplet_table{:,"wind_avg"};
 
-simplify_to_fdf = true; % Controls if the exact wind speed is used or if the same bins as used in the RENER joint FDF are used
+% Convert the wind speeds to the corresponding speed of the blade at a
+% each index
 
-if simplify_to_fdf
-    [w_bins,d_bins,w_mids,d_mids] = LoadMeasuredDSD("Simulation_Data\RENER2024\myMap_turbine.mat");
-    [~, indices] = min(abs(windVelocities(:) - w_mids), [], 2);
-    windVelocities = w_mids(indices)';
-    windVelocitiesCopy = windVelocities;
+strip_radius = 60.8; % Gives the radius of the strip being considered 60.8 corresponds to strip 6 in the paper
 
-end
+blade_velocities = WindToBladeVelocity(wind_velocities,strip_radius);
 
+% Create matrix of number of droplets incident on blade per m^2
+A = 0.0046; % area in m^2 of impact area
 
-bladeVelocities = WindToVelocity(windVelocities,"Simulation_Data\RENER2024\wind_omega_5MW.mat",63);
+[svd_diameters,svd_vels] = meshgrid(Dm,Vm); % Creates grid with 1-1 correspondence with the Size-Velocity Distribution with the droplet size and velocity at each point
 
-% Create matrix of number of droplets incident per m^2
-A = 0.0046; % area in m^2
-
-[svd_diameters,svd_vels] = meshgrid(Dm,Vm);
-
-
-
+svd_vals = 1; % Initially assume that droplet diameters are all 1 m/s as
 svd = svd./(A.*1); % Area converts from Impacts to per m^2, then the terminal velocity of the drops gives per m^3 (Time ommited as it cancels later)
 
 n_droplets_air = sum(svd,1); % Sum across all droplet terminal velocities
 
 n_droplets_air = permute(n_droplets_air,[3 2 1]); % Remove droplet terminal velocity dimension
 
-n_s = n_droplets_air .* bladeVelocities; % Convert back to per m^2 with the blade velocities (Ensuring data is along correct axis)
+n_s = n_droplets_air .* blade_velocities; % Convert back to per m^2 with the blade velocities (Ensuring data is along correct axis)
 
 
-[diameter_mesh,blade_vel_mesh] = meshgrid(Dm,bladeVelocities);
-
-computed_vals = ComputeSpringerRaw();
-
-allowed_impingements = CalculateAllowedImp(computed_vals,blade_vel_mesh,diameter_mesh);
-
-damages = n_s./allowed_impingements;
-
-timeSeriesDamages = sum(damages,2);
-
-cumSumDamages = cumsum(timeSeriesDamages);
-
-tot_damage = sum(damages,'all');
-% Calculate Damage
+% Now creates a matrix with both the droplet diameters and blade velocities
+% for every droplet diameter bin for every time step.
+[diameter_mesh,blade_vel_mesh] = meshgrid(Dm,blade_velocities); 
 
 
-%SpeedDropletPlot(velocity_bins,d_bins,log10(tot_impingements),"Incident Droplets");
+computed_vals = GetSpringerStrength(); % Sets up the springer strength (Given in the RENER paper)
 
-% Re-construct FDF:
+allowed_impingements = CalculateAllowedImpingements(computed_vals,blade_vel_mesh,diameter_mesh); % Calculates the allowed impingements for each blade velocity and diameter combination
 
-FDF = zeros(length(w_mids),length(d_mids));
+damages = n_s./allowed_impingements; 
 
-for x=1:length(w_mids)
-    rows = n_droplets_air(windVelocitiesCopy==w_mids(x),:);
-    FDF(x,:) = sum(rows,1);
+time_series_damage = sum(damages,2); % Gets the damage for every timestep
 
-end
+cumSumDamages = cumsum(time_series_damage); % Vector of the accumalated damage over time
 
-SpeedDropletPlot(d_bins,log10(FDF),"FDF - created");
+total_damage = sum(damages,'all');
 
 
-%plot(cumSumDamages);
-
-Hours  = (1/tot_damage)*365.24*24
+Hours  = (1/total_damage)*365.24*24 % Prints number of hours of the incubation time
 
 
-function newTable = RestructureTable(table)
+function new_table = RestructureTable(table)
+
+    % This function removes data not in the domain of the 1 year we are
+    % looking for. 
 
     t_vals = table{:,"dateTime"};
     t_vals = datetime(t_vals);
 
     % Find the indexes in the table that correspond to First time step of
-    % 10 October 2018 and last time step of 30 Sep 2019
+    % October 2018 and last time step of 30 Sep 2019
 
-    targetStartYear = 2018;
-    targetStartMonth = 10;
-    startDayIndex = find(year(t_vals) == targetStartYear & month(t_vals) == targetStartMonth, 1, 'first');
+    target_start_year = 2018;
+    target_start_month = 10;
+    start_day_index = find(year(t_vals) == target_start_year & month(t_vals) == target_start_month, 1, 'first');
 
     
     
-    targetEndYear = 2019;
-    targetEndMonth = 9;
-    targetEndDay = 30;
+    target_end_year = 2019;
+    target_end_month = 9;
+    target_end_day = 30;
     
-    endDayIndex = find(year(t_vals) == targetEndYear & month(t_vals) == targetEndMonth & day(t_vals) == targetEndDay , 1, 'last');
+    end_day_index = find(year(t_vals) == target_end_year & month(t_vals) == target_end_month & day(t_vals) == target_end_day , 1, 'last');
 
     % Now fill in the missing data
 
@@ -128,11 +110,11 @@ function newTable = RestructureTable(table)
     % However it says to fill in use the corresponding dates in 2017. This
     % data also does not exist.
 
-    % For now I will ignore and discuss with sergio. 
+    % For now I will ignore as it will be a small modification
 
 
     
-    newTable = table(startDayIndex:endDayIndex,:);
+    new_table = table(start_day_index:end_day_index,:);
 
 
 end

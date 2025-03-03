@@ -5,12 +5,12 @@ close all
 % 
 % DT = 60;
 % 
-% importedStructure = struct2cell(load(append("Simulation_Data\Time_Series\data",string(DT),"min_filt.mat")));
+% imported_structure = struct2cell(load(append("Simulation_Data\Time_Series\data",string(DT),"min_filt.mat")));
 % 
-% timeData = importedStructure{1};
+% wind_droplet_table = imported_structure{1};
 % 
 % for x = 1:440
-%     svdIndexing(x) = append("svd_",string(x-1));
+%     svd_indexing(x) = append("svd_",string(x-1));
 % end
 % 
 % for x = 1:22
@@ -21,11 +21,11 @@ close all
 %     dvdIndexing(x) = append("dvd_",string(x-1));
 % end
 % 
-% dvd = timeData{:,dvdIndexing};
-% dsd = timeData{:,dsdIndexing};
+% dvd = wind_droplet_table{:,dvdIndexing};
+% dsd = wind_droplet_table{:,dsdIndexing};
 % 
 % 
-% svd = timeData{:,svdIndexing};
+% svd = wind_droplet_table{:,svd_indexing};
 % svdSize = size(svd);
 % svd = reshape(svd', 20, 22, svdSize(1));  % Gives a matrix with terminal velocities on the first axis and Droplet diameters on the second
 % 
@@ -37,11 +37,10 @@ close all
 % isequal(constructeddsd, dsd)
 
 wind_speeds = 3:25;
-v_mid = WindToVelocity(wind_speeds,'Simulation_Data\RENER2024\wind_omega_5MW.mat',1) * 9.5492;
+v_mid = WindToBladeVelocity(wind_speeds,63) ;
 
 plot(wind_speeds,v_mid);
-xlim([3,25]);
-ylim([0,50]);
+
 xlabel("Wind Speed (m/s)");
-ylabel("Rotor Speed (rpm)");
+ylabel("Blade Speed (m/s)");
 grid("on")

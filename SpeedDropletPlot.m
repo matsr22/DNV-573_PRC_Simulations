@@ -18,7 +18,7 @@ function SpeedDropletPlot(dropSizes,matrix,myTitle)
     % Include a colorbar
     colorbar;
 
-    % Set the grid on and make lines black
+    % Set the grid on and make lines black - doesn't work at the moment
     grid on;
     set(gca, 'GridColor', 'k');
 

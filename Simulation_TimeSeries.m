@@ -45,12 +45,12 @@ strip_radius = 60.8; % Gives the radius of the strip being considered 60.8 corre
 blade_velocities = WindToBladeVelocity(wind_velocities,strip_radius);
 
 % Create matrix of number of droplets incident on blade per m^2
-A = 0.0046; % area in m^2 of impact area
+A = 0.0046; % area in m^2 of sensor
 
 [svd_diameters,svd_vels] = meshgrid(Dm,Vm); % Creates grid with 1-1 correspondence with the Size-Velocity Distribution with the droplet size and velocity at each point
 
-svd_vals = 1; % Initially assume that droplet diameters are all 1 m/s as
-svd = svd./(A.*1); % Area converts from Impacts to per m^2, then the terminal velocity of the drops gives per m^3 (Time ommited as it cancels later)
+svd_vels = 1; % Initially assume that droplet diameters are all 1 m/s - to match with RENER. Remove this line to consider droplet terminal velocities.
+svd = svd./(A.*svd_vels); % Area converts from Impacts to per m^2, then the terminal velocity of the drops gives per m^3 (Time ommited as it cancels later - see Incident_Droplet_Calculations.pdf for an explanation)
 
 n_droplets_air = sum(svd,1); % Sum across all droplet terminal velocities
 
@@ -77,19 +77,57 @@ cumSumDamages = cumsum(time_series_damage); % Vector of the accumalated damage o
 total_damage = sum(damages,'all');
 
 
-Hours  = (1/total_damage)*365.24*24 % Prints number of hours of the incubation time
 
 
-function new_table = RestructureTable(table)
+disp(['The total damage caused to the turbine is: ', num2str(total_damage)])
+Hours  = (1/total_damage)*356*24;
+disp(['Number of Hours for Incubation ', num2str(Hours)])
+
+
+function new_table = RestructureTable(input_table)
 
     % This function removes data not in the domain of the 1 year we are
     % looking for. 
 
-    t_vals = table{:,"dateTime"};
+    t_vals = input_table{:,"dateTime"};
     t_vals = datetime(t_vals);
 
-    % Find the indexes in the table that correspond to First time step of
+
+
+    % Now fill in the missing data
+
+    % Data needs to be copied from the entire month of July in 20
+
+    july_index_start = find(year(t_vals)==2017&month(t_vals)==7,1,"first");
+    july_index_end = find(year(t_vals)==2017&month(t_vals)==7,1,"last");
+
+    index_start_insertion = find(year(t_vals)==2019&month(t_vals)==6,1,"last");
+    index_end_insertion = find(year(t_vals)==2019&month(t_vals)==8,1,"first");
+
+    data_to_insert = input_table(july_index_start:july_index_end,:);
+
+    updated_timestamps = vertcat(data_to_insert{:,"dateTime"});
+
+    %updated_timestamps = datetime(cell2mat(updated_timestamps));
+    updated_timestamps.Year = 2019;
+    %updated_timestamps = num2cell(updated_timestamps);
+
+    data_to_insert{:,"dateTime"} = updated_timestamps;
+
+
+
+
+
+    table_1 = input_table(1:index_start_insertion,:);
+
+    table_2 = input_table(index_end_insertion:end,:);
+
+    input_table = [table_1;data_to_insert;table_2;];
+
+        % Find the indexes in the table that correspond to First time step of
     % October 2018 and last time step of 30 Sep 2019
+    t_vals = input_table{:,"dateTime"};
+    t_vals = datetime(t_vals);
 
     target_start_year = 2018;
     target_start_month = 10;
@@ -103,7 +141,7 @@ function new_table = RestructureTable(table)
     
     end_day_index = find(year(t_vals) == target_end_year & month(t_vals) == target_end_month & day(t_vals) == target_end_day , 1, 'last');
 
-    % Now fill in the missing data
+
 
     % In the RENER24 Paper, data is described as missing between the 22nd
     % and 26th of Sep 2019. This is accurate
@@ -114,7 +152,7 @@ function new_table = RestructureTable(table)
 
 
     
-    new_table = table(start_day_index:end_day_index,:);
+    new_table = input_table(start_day_index:end_day_index,:);
 
 
 end

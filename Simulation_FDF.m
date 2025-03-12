@@ -1,15 +1,23 @@
-clear
-clc
-close all
+
 % Main Simulation
 
+strip_radii = [45.15 49.25 53 56.05 58.75 60.8]; % Strips, indexed 1 to 6 of those considered in the paper
 
-[w_bins,d_bins,w_mid,d_mid,initialFDF] = LoadMeasuredDSD("Simulation_Data\RENER2024\myMap_turbine.mat"); % Gets the joint Frequency Distribution Function
+consider_all_strips = true;
 
-strip_radius = 60.8; % Gives the radius of the strip being considered 60.8 corresponds to strip 6 in the paper
-v_mid = WindToBladeVelocity(w_mid,strip_radius);% Converts the wind speed to tip speed for use in the simulation
+if consider_all_strips
+    num_loops = 1:length(strip_radii);
+else
+    num_loops = strip_index;
+end
 
-[d_grid,v_grid] = meshgrid(d_mid,v_mid);
+
+for i = 1:length(strip_radii)
+[w_calc,d_calc,initialFDF] = LoadMeasuredDSD("Simulation_Data\RENER2024\myMap_turbine.mat"); % Gets the joint Frequency Distribution Function
+v_calc = WindToBladeVelocity(w_calc,strip_radii(i));% Converts the wind speed to tip speed for use in the simulation
+
+[d_grid,v_grid] = meshgrid(d_calc,v_calc);
+
 
 
 computed_vals = GetSpringerStrength();
@@ -27,19 +35,36 @@ FDF = initialFDF .* (v_grid./droplet_terminal_velocity);
 % Calculate Damage
 
 damage_grid = FDF ./allowed_impingements;
+total_damage = sum(damage_grid,"all");
+
+strip_hours(i) = (1/total_damage)*356*24;
+strip_damage(i) = total_damage;
+end
+
+format longG
+strip_hours = round(strip_hours);
+str = strjoin(string(strip_hours), '&')
+
+ref_lifetimes = [34891 21156 13408 9402 7186 5509];
+
+strip_damage;
+
+d_bins = [0 d_calc];
 
 SpeedDropletPlot(d_bins,log10(FDF),"Incident Droplets per m^2 (Upon Blade)");
 
 SpeedDropletPlot(d_bins,log10(initialFDF),"Incident Droplets per m^2 (Air)");
 
-SpeedDropletPlot(d_bins,damage_grid,"Damage Caused");
+SpeedDropletPlot(d_bins,damage_grid,"n/N - Joint FDF");
 hold on;
 clim([0 0.05]) % To match the damage scale used in the paper - for comparison
 hold off;
 
-total_damage = sum(damage_grid,"all");
-disp(['The total damage caused to the turbine is: ', num2str(total_damage)])
-Hours  = (1/total_damage)*356*24;
-disp(['Number of Hours for Incubation ', num2str(Hours)])
+% total_damage = sum(damage_grid,"all");
+% disp(['The total damage caused to the turbine is: ', num2str(total_damage)])
+% Hours  = (1/total_damage)*356*24;
+% disp(['Number of Hours for Incubation ', num2str(Hours)])
+
+
 
 

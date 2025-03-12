@@ -3,15 +3,44 @@ clear
 clc
 close all
 
-% Load in time series data:
+% Contol Simulation Settings
+
+use_filtered_data = true;
+consider_all_strips = true;
 DT = 10; % Time step of the data expressed in minutes
 
-imported_structure = struct2cell(load(append("Simulation_Data\Time_Series\",string(DT),"min_data_flatten.mat")));% Using the non-filtered data to match the joint FDF
-wind_droplet_table = imported_structure{1};
-d_bins = imported_structure{2};
-terminal_v_bins = [imported_structure{3} 100]; % The last index is added for the bin that exists to infinity. 
 
-wind_droplet_table = RestructureTable(wind_droplet_table); % Adjusts the table so that the correct time frame is used
+strip_radii = [45.15 49.25 53 56.05 58.75 60.8]; % Strips, indexed 1 to 6 of those considered in the paper
+
+strip_index = 6; % Index of strip being considered
+
+if use_filtered_data
+    suffix = "filt";
+else
+    suffix = "unfilt";
+end
+
+if consider_all_strips
+    num_loops = 1:length(strip_radii);
+else
+    num_loops = strip_index;
+end
+
+
+for i = num_loops
+
+% Load in time series data:
+imported_structure = struct2cell(load(append("Simulation_Data\Time_Series\",string(DT),"min_data_",suffix,".mat")));% Using the non-filtered data to match the joint FDF
+wind_droplet_table = imported_structure{1};
+
+% In my meeting with S we discussed moving all the data from the last
+% droplet diameter bin into the second last due to the fact the bins are
+% only defined for the lower value of each bin, I will ignore this for now
+
+d_bins = imported_structure{2}; % The bins provided are for the lower value of each bin. 
+terminal_v_bins = [imported_structure{3} 10]; % The bins are provided for the upper value of each bin 
+
+%wind_droplet_table = RestructureTable(wind_droplet_table); % Adjusts the table so that the correct time frame is used
 
 
 % Generates a vector of the variables of the joint size velocity
@@ -30,24 +59,34 @@ svd = reshape(svd', 20, 22, svdSize(1));
 
 
 % The diameters and velocities assosiated with each of the bins in svd 
-Dm = (d_bins(1:(end-1)) + d_bins(2:end))./2;
+d_calculations = d_bins; 
 
-Vm = (terminal_v_bins(1:(end-1)) + terminal_v_bins(2:end))./2;
+t_v_lower = [0 terminal_v_bins(1:end-1)];
+t_v_calculations = (terminal_v_bins + t_v_lower)./2; % Currently Gets the midpoint of each of the terminal velocities
+
+
 
 % Wind speed at each timestep
 wind_velocities = wind_droplet_table{:,"wind_avg"};
 
+simplify_to_fdf = true; % Controls if the exact wind speed is used or if the same bins as used in the RENER joint FDF are used
+ 
+if simplify_to_fdf
+ [w_mids,d_lowers] = LoadMeasuredDSD("Simulation_Data\RENER2024\myMap_turbine.mat");
+ [~, indices] = min(abs(wind_velocities(:) - w_mids), [], 2); % Gets for each exact wind velocity, the index of the wind velocity that is the bin this velocity falls under
+ wind_velocities = w_mids(indices)';
+
+end
+
 % Convert the wind speeds to the corresponding speed of the blade at a
 % each index
 
-strip_radius = 60.8; % Gives the radius of the strip being considered 60.8 corresponds to strip 6 in the paper
-
-blade_velocities = WindToBladeVelocity(wind_velocities,strip_radius);
+blade_velocities = WindToBladeVelocity(wind_velocities,strip_radii(i));
 
 % Create matrix of number of droplets incident on blade per m^2
 A = 0.0046; % area in m^2 of sensor
 
-[svd_diameters,svd_vels] = meshgrid(Dm,Vm); % Creates grid with 1-1 correspondence with the Size-Velocity Distribution with the droplet size and velocity at each point
+[svd_diameters,svd_vels] = meshgrid(d_calculations,t_v_calculations); % Creates grid with 1-1 correspondence with the Size-Velocity Distribution with the droplet size and velocity at each point
 
 svd_vels = 1; % Initially assume that droplet diameters are all 1 m/s - to match with RENER. Remove this line to consider droplet terminal velocities.
 svd = svd./(A.*svd_vels); % Area converts from Impacts to per m^2, then the terminal velocity of the drops gives per m^3 (Time ommited as it cancels later - see Incident_Droplet_Calculations.pdf for an explanation)
@@ -61,7 +100,7 @@ n_s = n_droplets_air .* blade_velocities; % Convert back to per m^2 with the bla
 
 % Now creates a matrix with both the droplet diameters and blade velocities
 % for every droplet diameter bin for every time step.
-[diameter_mesh,blade_vel_mesh] = meshgrid(Dm,blade_velocities); 
+[diameter_mesh,blade_vel_mesh] = meshgrid(d_calculations,blade_velocities); 
 
 
 computed_vals = GetSpringerStrength(); % Sets up the springer strength (Given in the RENER paper)
@@ -72,16 +111,65 @@ damages = n_s./allowed_impingements;
 
 time_series_damage = sum(damages,2); % Gets the damage for every timestep
 
+droplet_diameter_damage = sum(damages,1);
+
 cumSumDamages = cumsum(time_series_damage); % Vector of the accumalated damage over time
 
 total_damage = sum(damages,'all');
 
+strip_damage(i) = total_damage;
+strip_hours(i) = (1/total_damage)*356*24;
+
+end
 
 
 
-disp(['The total damage caused to the turbine is: ', num2str(total_damage)])
-Hours  = (1/total_damage)*356*24;
-disp(['Number of Hours for Incubation ', num2str(Hours)])
+
+% disp(['The total damage caused to the turbine is: ', num2str(total_damage)])
+% Hours  = (1/total_damage)*356*24;
+
+format longG
+% disp(['Number of Hours for Incubation ', num2str(Hours)])
+
+ans1 = strip_hours
+
+ans3 = strip_damage
+
+ref_lifetimes = [34891 21156 13408 9402 7186 5509];
+
+
+ans2 = 100.*(abs(strip_hours-ref_lifetimes)./ref_lifetimes)
+
+if simplify_to_fdf
+% Re-construct FDF:
+ 
+ FDF = zeros(length(w_mids),length(d_lowers));
+ 
+ for x=1:length(w_mids)
+     wind = w_mids(x);
+     mask = (wind_velocities == wind);
+     FDF(x,:) = sum(n_s(mask, :), 1);
+ 
+ end
+ d_bins = [0 d_lowers ]; % An incorrect display of the data but it is consistent with the rener paper
+ %SpeedDropletPlot(d_bins,log10(FDF),"FDF - created");
+
+ damages_FDF =  zeros(length(w_mids),length(d_lowers));
+
+ for x=1:length(w_mids)
+     wind = w_mids(x);
+     mask = (wind_velocities == wind);
+     damages_FDF(x,:) = sum(damages(mask, :), 1);
+ end
+
+ SpeedDropletPlot(d_bins,damages_FDF,"n/N - Time Series")
+ hold on;
+clim([0 0.05]) % To match the damage scale used in the paper - for comparison
+hold off;
+
+end
+
+%disp(['Percentage difference between Predicted and Reference:', num2str(100*(abs(Hours-ref_lifetimes(strip_index))/ref_lifetimes(strip_index)))])
 
 
 function new_table = RestructureTable(input_table)

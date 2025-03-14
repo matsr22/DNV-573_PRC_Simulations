@@ -9,9 +9,19 @@ function [w_calc,d_calc,matrix] = LoadMeasuredDSD(fileName)
     % last one being unbounded
     % The loaded matlab file must have Map, WindRange and dropSizes as its variable names 
 
+    d_calc_location = 1; % Choses which point in the bin the calculation is done from, default is 1 - the lower value, as used by RENER and Rome. Can choose 2 - the center of the bin or 3 the upper of the bin
+
     vars = load(fileName);
     w_calc = vars.WindRange + 0.5; % Corresponds to the centre of each bin
-    d_calc = vars.dropSizes;% Corresponds to the lower of each bin, as discussed 
+
+    if d_calc_location == 1
+        d_calc = vars.dropSizes;% Corresponds to the lower of each bin, as discussed 
+    elseif d_calc_location ==2
+        temp = [vars.dropSizes(2:end) 8.5];
+        d_calc = (vars.dropSizes + temp)./2;
+    else
+        d_calc = [vars.dropSizes(2:end) 8.5];
+    end
     Map = vars.Map;
     matrix = Map;
 

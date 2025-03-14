@@ -2,17 +2,19 @@
 clear
 clc
 close all
-
-% Contol Simulation Settings
+%
+% Configuration of the Simulation
+%
 
 use_filtered_data = true;
-consider_all_strips = true;
-DT = 10; % Time step of the data expressed in minutes
+consider_all_strips = true; % Controls if all strips are calculated or just the outer one
+consider_terminal_velocities = false; % If false sets all terminal velocities to 1, as is done in the joint FDF
+simplify_to_fdf = false; % Controls if the exact wind speed is used or if the same bins as used in the RENER joint FDF are used
+DT = 60; % Time step of the data expressed in minutes
 
 
 strip_radii = [45.15 49.25 53 56.05 58.75 60.8]; % Strips, indexed 1 to 6 of those considered in the paper
 
-strip_index = 6; % Index of strip being considered
 
 if use_filtered_data
     suffix = "filt";
@@ -21,26 +23,26 @@ else
 end
 
 if consider_all_strips
-    num_loops = 1:length(strip_radii);
+    strip_index = 1:6;
 else
-    num_loops = strip_index;
+    strip_index = 6;
 end
 
+%
+% Import Data
+%
 
-for i = num_loops
+imported_structure = struct2cell(load(append("Simulation_Data\Time_Series_Lancaster\",string(DT),"min_data_",suffix,".mat")));% Using the non-filtered data to match the joint FDF
+
+
+for i = strip_index
 
 % Load in time series data:
-imported_structure = struct2cell(load(append("Simulation_Data\Time_Series\",string(DT),"min_data_",suffix,".mat")));% Using the non-filtered data to match the joint FDF
 wind_droplet_table = imported_structure{1};
 
-% In my meeting with S we discussed moving all the data from the last
-% droplet diameter bin into the second last due to the fact the bins are
-% only defined for the lower value of each bin, I will ignore this for now
 
 d_bins = imported_structure{2}; % The bins provided are for the lower value of each bin. 
 terminal_v_bins = [imported_structure{3} 10]; % The bins are provided for the upper value of each bin 
-
-%wind_droplet_table = RestructureTable(wind_droplet_table); % Adjusts the table so that the correct time frame is used
 
 
 % Generates a vector of the variables of the joint size velocity
@@ -59,8 +61,10 @@ svd = reshape(svd', 20, 22, svdSize(1));
 
 
 % The diameters and velocities assosiated with each of the bins in svd 
-d_calculations = d_bins; 
+d_calc = d_bins; 
 
+% Used to calculate the values for the terminal velocity - unused if
+% assuming 1m/s
 t_v_lower = [0 terminal_v_bins(1:end-1)];
 t_v_calculations = (terminal_v_bins + t_v_lower)./2; % Currently Gets the midpoint of each of the terminal velocities
 
@@ -69,12 +73,13 @@ t_v_calculations = (terminal_v_bins + t_v_lower)./2; % Currently Gets the midpoi
 % Wind speed at each timestep
 wind_velocities = wind_droplet_table{:,"wind_avg"};
 
-simplify_to_fdf = true; % Controls if the exact wind speed is used or if the same bins as used in the RENER joint FDF are used
- 
+
+% Places wind velocity into bins rather than using the exact value - for
+% comparison purposes 
 if simplify_to_fdf
- [w_mids,d_lowers] = LoadMeasuredDSD("Simulation_Data\RENER2024\myMap_turbine.mat");
- [~, indices] = min(abs(wind_velocities(:) - w_mids), [], 2); % Gets for each exact wind velocity, the index of the wind velocity that is the bin this velocity falls under
- wind_velocities = w_mids(indices)';
+ [w_calc,d_calc] = LoadMeasuredDSD("Simulation_Data\RENER2024\myMap_turbine.mat");
+ [~, indices] = min(abs(wind_velocities(:) - w_calc), [], 2); % Gets for each exact wind velocity, the index of the wind velocity that is the bin this velocity falls under
+ wind_velocities = w_calc(indices)';
 
 end
 
@@ -83,24 +88,28 @@ end
 
 blade_velocities = WindToBladeVelocity(wind_velocities,strip_radii(i));
 
+impact_velocities = sqrt(blade_velocities.^2 + wind_velocities.^2); % Remove DIFFERENCE
+
 % Create matrix of number of droplets incident on blade per m^2
-A = 0.0046; % area in m^2 of sensor
+A = 0.00456; % area in m^2 of sensor
 
-[svd_diameters,svd_vels] = meshgrid(d_calculations,t_v_calculations); % Creates grid with 1-1 correspondence with the Size-Velocity Distribution with the droplet size and velocity at each point
+[svd_diameters,svd_vels] = meshgrid(d_calc,t_v_calculations); % Creates grid with 1-1 correspondence with the Size-Velocity Distribution with the droplet size and velocity at each point
 
-svd_vels = 1; % Initially assume that droplet diameters are all 1 m/s - to match with RENER. Remove this line to consider droplet terminal velocities.
+if  ~ consider_terminal_velocities
+    svd_vels = 1; % Initially assume that droplet diameters are all 1 m/s - to match with RENER. Remove this line to consider droplet terminal velocities.
+end
 svd = svd./(A.*svd_vels); % Area converts from Impacts to per m^2, then the terminal velocity of the drops gives per m^3 (Time ommited as it cancels later - see Incident_Droplet_Calculations.pdf for an explanation)
 
 n_droplets_air = sum(svd,1); % Sum across all droplet terminal velocities
 
 n_droplets_air = permute(n_droplets_air,[3 2 1]); % Remove droplet terminal velocity dimension
 
-n_s = n_droplets_air .* blade_velocities; % Convert back to per m^2 with the blade velocities (Ensuring data is along correct axis)
+n_s = n_droplets_air .* impact_velocities; % Convert back to per m^2 with the blade velocities (Ensuring data is along correct axis)
 
 
 % Now creates a matrix with both the droplet diameters and blade velocities
 % for every droplet diameter bin for every time step.
-[diameter_mesh,blade_vel_mesh] = meshgrid(d_calculations,blade_velocities); 
+[diameter_mesh,blade_vel_mesh] = meshgrid(d_calc,impact_velocities); 
 
 
 computed_vals = GetSpringerStrength(); % Sets up the springer strength (Given in the RENER paper)
@@ -118,46 +127,34 @@ cumSumDamages = cumsum(time_series_damage); % Vector of the accumalated damage o
 total_damage = sum(damages,'all');
 
 strip_damage(i) = total_damage;
-strip_hours(i) = (1/total_damage)*356*24;
+strip_hours(i) = (1/total_damage)*365*24; % CHANGE MADE
 
 end
 
 
 
-
-% disp(['The total damage caused to the turbine is: ', num2str(total_damage)])
-% Hours  = (1/total_damage)*356*24;
-
-format longG
-% disp(['Number of Hours for Incubation ', num2str(Hours)])
-
-ans1 = strip_hours
-
-ans3 = strip_damage
-
-ref_lifetimes = [34891 21156 13408 9402 7186 5509];
+ref_lifetimes = [30502 18597 12210 8846 6739 5524];
 
 
-ans2 = 100.*(abs(strip_hours-ref_lifetimes)./ref_lifetimes)
 
 if simplify_to_fdf
 % Re-construct FDF:
  
- FDF = zeros(length(w_mids),length(d_lowers));
+ FDF = zeros(length(w_calc),length(d_calc));
  
- for x=1:length(w_mids)
-     wind = w_mids(x);
+ for x=1:length(w_calc)
+     wind = w_calc(x);
      mask = (wind_velocities == wind);
      FDF(x,:) = sum(n_s(mask, :), 1);
  
  end
- d_bins = [0 d_lowers ]; % An incorrect display of the data but it is consistent with the rener paper
+ d_bins = [0 d_bins ]; % An incorrect display of the data but it is consistent with the rener paper
  %SpeedDropletPlot(d_bins,log10(FDF),"FDF - created");
 
- damages_FDF =  zeros(length(w_mids),length(d_lowers));
+ damages_FDF =  zeros(length(w_calc),length(d_calc));
 
- for x=1:length(w_mids)
-     wind = w_mids(x);
+ for x=1:length(w_calc)
+     wind = w_calc(x);
      mask = (wind_velocities == wind);
      damages_FDF(x,:) = sum(damages(mask, :), 1);
  end
@@ -169,79 +166,16 @@ hold off;
 
 end
 
-%disp(['Percentage difference between Predicted and Reference:', num2str(100*(abs(Hours-ref_lifetimes(strip_index))/ref_lifetimes(strip_index)))])
+disp('Incubation Time Predicted:')
 
+ans =strip_hours(strip_index)
 
-function new_table = RestructureTable(input_table)
+disp('Percentage difference between predicted and reference:')
 
-    % This function removes data not in the domain of the 1 year we are
-    % looking for. 
-
-    t_vals = input_table{:,"dateTime"};
-    t_vals = datetime(t_vals);
-
-
-
-    % Now fill in the missing data
-
-    % Data needs to be copied from the entire month of July in 20
-
-    july_index_start = find(year(t_vals)==2017&month(t_vals)==7,1,"first");
-    july_index_end = find(year(t_vals)==2017&month(t_vals)==7,1,"last");
-
-    index_start_insertion = find(year(t_vals)==2019&month(t_vals)==6,1,"last");
-    index_end_insertion = find(year(t_vals)==2019&month(t_vals)==8,1,"first");
-
-    data_to_insert = input_table(july_index_start:july_index_end,:);
-
-    updated_timestamps = vertcat(data_to_insert{:,"dateTime"});
-
-    %updated_timestamps = datetime(cell2mat(updated_timestamps));
-    updated_timestamps.Year = 2019;
-    %updated_timestamps = num2cell(updated_timestamps);
-
-    data_to_insert{:,"dateTime"} = updated_timestamps;
+100*(abs(strip_hours(strip_index)-ref_lifetimes(strip_index))./ref_lifetimes(strip_index))
 
 
 
 
 
-    table_1 = input_table(1:index_start_insertion,:);
-
-    table_2 = input_table(index_end_insertion:end,:);
-
-    input_table = [table_1;data_to_insert;table_2;];
-
-        % Find the indexes in the table that correspond to First time step of
-    % October 2018 and last time step of 30 Sep 2019
-    t_vals = input_table{:,"dateTime"};
-    t_vals = datetime(t_vals);
-
-    target_start_year = 2018;
-    target_start_month = 10;
-    start_day_index = find(year(t_vals) == target_start_year & month(t_vals) == target_start_month, 1, 'first');
-
-    
-    
-    target_end_year = 2019;
-    target_end_month = 9;
-    target_end_day = 30;
-    
-    end_day_index = find(year(t_vals) == target_end_year & month(t_vals) == target_end_month & day(t_vals) == target_end_day , 1, 'last');
-
-
-
-    % In the RENER24 Paper, data is described as missing between the 22nd
-    % and 26th of Sep 2019. This is accurate
-    % However it says to fill in use the corresponding dates in 2017. This
-    % data also does not exist.
-
-    % For now I will ignore as it will be a small modification
-
-
-    
-    new_table = input_table(start_day_index:end_day_index,:);
-
-
-end
 

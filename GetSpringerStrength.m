@@ -9,7 +9,7 @@ function input_values = GetSpringerStrength()
     % These values are for water and are found in the RENER 2024 paper
     
     Z_l = 1484000;%Impedance
-    c_l = 1480;%Speed of Sound
+    c_l = 1484;%Speed of Sound - CHECK LATER - difference
      
     % The following values are pulled from the RENER paper and are for the
     % specific coating referenced within - (All in base SI units)
@@ -40,7 +40,7 @@ function input_values = GetSpringerStrength()
 
     % This line gives the raw strength from the RENER paper
     m = 4.97;
-    raw_springer = 9.002E9;
+    raw_springer = 9.009E9; % Check later - difference
 
     input_values = struct('raw_springer', raw_springer, 'm', m, ...
         'ModifiedStrength', ModifiedStrength, 'HammerStress', HammerStress);

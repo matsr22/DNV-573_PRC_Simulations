@@ -1,0 +1,149 @@
+clear;
+clc;
+close all;
+
+
+% This test asseses if the total rainfall in the datasets I have are the
+% same as in the RENER paper
+
+
+d_position = 2; % Controls if the lower end of the bin - The droplet diameters provided by the data (1), the midpoint of the bin (2) or the upper end of the bin (3) is used in droplet calculations
+
+DT = 10; % Controls what time resolution is used for the simulation
+
+imported_structure_filt = struct2cell(load(append("..\Simulation_Data\Time_Series_Lancaster\",num2str(DT),"min_data_filt.mat")));% Using the filtered data that Alessio has produced
+imported_structure_unfilt = struct2cell(load(append("..\Simulation_Data\Time_Series_Lancaster\",num2str(DT),"min_data_unfilt.mat")));% Using the non-filtered data to match the joint FDF
+
+
+
+% Gets the droplet diameters as reported in the files (starting at 0.125)
+d_lowers = imported_structure_filt{2};
+
+% This is the midpoint of the droplet diameter bins
+d_uppers = [d_lowers(2:end) 9]; % Arbitarily choses 9mm as the upper value of the largest droplet bin. This value should not make much difference as not many droplets in this bin
+d_mids = (d_lowers(1:end)+ d_uppers)./2;
+
+
+if d_position == 1
+    d_calc = d_lowers;
+elseif d_position == 2
+    d_calc = d_mids;
+elseif d_position == 3
+    d_calc = d_uppers;
+end
+volumes = (4/3)*pi* (d_calc./2).^3;
+
+
+% Gets the rainfall data directly from the table and sums 
+table_filt = imported_structure_filt{1};
+table_unfilt = imported_structure_unfilt{1};
+
+
+for x = 1:22
+    dsd_indexing(x) = append("dsd_",string(x-1));
+end
+
+
+
+% Gets the collumns of the dsd from the table
+droplet_dist_filt = table_filt{:,dsd_indexing};
+
+droplet_dist_unfilt = table_unfilt{:,dsd_indexing};
+
+
+
+
+A = 0.00456*1000*1000;
+format shortG
+
+total_droplets = sum(droplet_dist_unfilt,1)./0.00456
+
+% Convert to rainfall  in mm - multiply number of droplets by the volume of
+% each to get total rain volume in mm^3 then divide by area of disdrometer
+droplet_volumes_filt = volumes.*droplet_dist_filt./A; 
+
+droplet_volumes_unfilt = volumes.*droplet_dist_unfilt./A;
+
+
+% Sum across timesteps and droplet diameters
+rainfall_filt = sum(droplet_volumes_filt,"all")
+rainfall_unfilt = sum(droplet_volumes_unfilt,"all")
+
+
+
+
+
+% Function to remove the patched data in the table - unuses atm
+
+function new_table = RestructureTable(input_table)
+
+    % This function removes data not in the domain of the 1 year we are
+    % looking for. 
+
+    t_vals = input_table{:,"dateTime"};
+    t_vals = datetime(t_vals);
+
+
+
+    % Now fill in the missing data
+
+    % Data needs to be copied from the entire month of July in 20
+
+    july_index_start = find(year(t_vals)==2017&month(t_vals)==7,1,"first");
+    july_index_end = find(year(t_vals)==2017&month(t_vals)==7,1,"last");
+
+    index_start_insertion = find(year(t_vals)==2019&month(t_vals)==6,1,"last");
+    index_end_insertion = find(year(t_vals)==2019&month(t_vals)==8,1,"first");
+
+    data_to_insert = input_table(july_index_start:july_index_end,:);
+
+    updated_timestamps = vertcat(data_to_insert{:,"dateTime"});
+
+    %updated_timestamps = datetime(cell2mat(updated_timestamps));
+    updated_timestamps.Year = 2019;
+    %updated_timestamps = num2cell(updated_timestamps);
+
+    data_to_insert{:,"dateTime"} = updated_timestamps;
+
+
+
+
+
+    table_1 = input_table(1:index_start_insertion,:);
+
+    table_2 = input_table(index_end_insertion:end,:);
+
+    %input_table = [table_1;data_to_insert;table_2;];
+
+        % Find the indexes in the table that correspond to First time step of
+    % October 2018 and last time step of 30 Sep 2019
+    t_vals = input_table{:,"dateTime"};
+    t_vals = datetime(t_vals);
+
+    target_start_year = 2018;
+    target_start_month = 10;
+    start_day_index = find(year(t_vals) == target_start_year & month(t_vals) == target_start_month, 1, 'first');
+
+    
+    
+    target_end_year = 2019;
+    target_end_month = 9;
+    target_end_day = 30;
+    
+    end_day_index = find(year(t_vals) == target_end_year & month(t_vals) == target_end_month & day(t_vals) == target_end_day , 1, 'last');
+
+
+
+    % In the RENER24 Paper, data is described as missing between the 22nd
+    % and 26th of Sep 2019. This is accurate
+    % However it says to fill in use the corresponding dates in 2017. This
+    % data also does not exist.
+
+    % For now I will ignore as it will be a small modification
+
+
+    
+    new_table = input_table(start_day_index:end_day_index,:);
+
+
+end

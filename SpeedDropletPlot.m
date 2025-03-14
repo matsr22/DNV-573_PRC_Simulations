@@ -40,13 +40,7 @@ function SpeedDropletPlot(dropSizes,matrix,myTitle)
     yticks(0.5:22.5)
     yticklabels(ticks)
 
-    % % Add dashed gridlines
-    % for i = 1:5:length(x_bins)
-    %     plot([x_bins(i), x_bins(i)], [y_bins(1), y_bins(end)], 'w:', 'LineWidth', 0.2); % Vertical lines
-    % end
-    % for j = 1:5:length(y_bins)
-    %     plot([x_bins(1), x_bins(end)], [y_bins(j), y_bins(j)], 'w:', 'LineWidth', 0.2); % Horizontal lines
-    % end
+
 
     pbaspect([1 1 1])
     axis([0.5 30.5 0.5 22.5])

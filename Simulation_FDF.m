@@ -1,4 +1,8 @@
 
+clear;
+clc;
+close all;
+
 % Simulation Performed on the Frequency Distribution Matrix 
 
 %
@@ -7,7 +11,9 @@
 
 strip_radii = [45.15 49.25 53 56.05 58.75 60.8]; % Strips, indexed 1 to 6 of those considered in the paper
 
-consider_all_strips = true;
+strip_index = 6; % Strip to consider if only considering 1
+
+consider_all_strips = false;
 plot_graphs = true;
 
 if consider_all_strips
@@ -57,7 +63,7 @@ ref_lifetimes = [30502 18597 12210 8846 6739 5524]; % Lifetimes given by ROME fo
 
 
 if plot_graphs
-    d_bins = [0 d_calc];
+    d_bins = [d_calc 10];
     
     SpeedDropletPlot(d_bins,log10(FDF),"Incident Droplets per m^2 (Upon Blade)");
     

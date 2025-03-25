@@ -11,16 +11,18 @@ d_position = 2; % Controls if the lower end of the bin - The droplet diameters p
 
 DT = 10; % Controls what time resolution is used for the simulation
 
-imported_structure_filt = struct2cell(load(append("..\Simulation_Data\Time_Series_Lancaster\",num2str(DT),"min_data_filt.mat")));% Using the filtered data that Alessio has produced
-imported_structure_unfilt = struct2cell(load(append("..\Simulation_Data\Time_Series_Lancaster\",num2str(DT),"min_data_unfilt.mat")));% Using the non-filtered data to match the joint FDF
+%imported_structure_filt = struct2cell(load(append("..\Simulation_Data\Time_Series_Lancaster\",num2str(DT),"min_data_filt.mat")));% Using the filtered data that Alessio has produced
+%imported_structure_unfilt = struct2cell(load(append("..\Simulation_Data\Time_Series_Lancaster\",num2str(DT),"min_data_unfilt.mat")));% Using the non-filtered data to match the joint FDF
 
+imported_structure_filt = struct2cell(load(append("..\Simulation_Data\Lecce\Lecce_filt_",num2str(DT),"min_data.mat")));% Using the non-filtered data to match the joint FDF
+imported_structure_unfilt = struct2cell(load(append("..\Simulation_Data\Lecce\Lecce_nofilt_",num2str(DT),"min_data.mat")));% Using the non-filtered data to match the joint FDF
 
 
 % Gets the droplet diameters as reported in the files (starting at 0.125)
 d_lowers = imported_structure_filt{2};
 
 % This is the midpoint of the droplet diameter bins
-d_uppers = [d_lowers(2:end) 9]; % Arbitarily choses 9mm as the upper value of the largest droplet bin. This value should not make much difference as not many droplets in this bin
+d_uppers = [d_lowers(2:end) 10]; % Arbitarily choses 9mm as the upper value of the largest droplet bin. This value should not make much difference as not many droplets in this bin
 d_mids = (d_lowers(1:end)+ d_uppers)./2;
 
 
@@ -38,6 +40,12 @@ volumes = (4/3)*pi* (d_calc./2).^3;
 table_filt = imported_structure_filt{1};
 table_unfilt = imported_structure_unfilt{1};
 
+% Following Lines ONLY FOR LECCE DATA FOR NOW
+year_length_index = (60/DT)*24*365;
+
+table_filt =table_filt(1:year_length_index,:);
+table_unfilt =table_unfilt(1:year_length_index,:);
+%
 
 for x = 1:22
     dsd_indexing(x) = append("dsd_",string(x-1));

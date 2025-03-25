@@ -7,18 +7,22 @@ close all;
 % same as in the RENER paper
 
 
-d_position = 1; % Controls if the lower end of the bin - The droplet diameters provided by the data (1), the midpoint of the bin (2) or the upper end of the bin (3) is used in droplet calculations
+d_position = 2; % Controls if the lower end of the bin - The droplet diameters provided by the data (1), the midpoint of the bin (2) or the upper end of the bin (3) is used in droplet calculations
 
+DT = 10; % Controls what time resolution is used for the simulation
 
-imported_structure_filt = struct2cell(load(append("..\Simulation_Data\Time_Series\10min_data_filt.mat")));% Using the filtered data that Alessio has produced
-imported_structure_unfilt = struct2cell(load(append("..\Simulation_Data\Time_Series\10min_data_unfilt.mat")));% Using the non-filtered data to match the joint FDF
+%imported_structure_filt = struct2cell(load(append("..\Simulation_Data\Time_Series_Lancaster\",num2str(DT),"min_data_filt.mat")));% Using the filtered data that Alessio has produced
+%imported_structure_unfilt = struct2cell(load(append("..\Simulation_Data\Time_Series_Lancaster\",num2str(DT),"min_data_unfilt.mat")));% Using the non-filtered data to match the joint FDF
+
+imported_structure_filt = struct2cell(load(append("..\Simulation_Data\Lecce\Lecce_filt_",num2str(DT),"min_data.mat")));% Using the non-filtered data to match the joint FDF
+imported_structure_unfilt = struct2cell(load(append("..\Simulation_Data\Lecce\Lecce_nofilt_",num2str(DT),"min_data.mat")));% Using the non-filtered data to match the joint FDF
 
 
 % Gets the droplet diameters as reported in the files (starting at 0.125)
 d_lowers = imported_structure_filt{2};
 
 % This is the midpoint of the droplet diameter bins
-d_uppers = [d_lowers(2:end) 9]; % Arbitarily choses 9mm as the upper value of the largest droplet bin. This value should not make much difference as not many droplets in this bin
+d_uppers = [d_lowers(2:end) 10]; % Arbitarily choses 9mm as the upper value of the largest droplet bin. This value should not make much difference as not many droplets in this bin
 d_mids = (d_lowers(1:end)+ d_uppers)./2;
 
 
@@ -36,10 +40,16 @@ volumes = (4/3)*pi* (d_calc./2).^3;
 table_filt = imported_structure_filt{1};
 table_unfilt = imported_structure_unfilt{1};
 
+% Following Lines ONLY FOR LECCE DATA FOR NOW
+
+table_filt = T = T(1:200, :);
+
 
 for x = 1:22
     dsd_indexing(x) = append("dsd_",string(x-1));
 end
+
+
 
 % Gets the collumns of the dsd from the table
 droplet_dist_filt = table_filt{:,dsd_indexing};
@@ -47,14 +57,21 @@ droplet_dist_filt = table_filt{:,dsd_indexing};
 droplet_dist_unfilt = table_unfilt{:,dsd_indexing};
 
 
-A = 0.0046*1000*1000;
 
-droplet_volumes_filt = volumes.*droplet_dist_filt./A; % Convert to rainfall  in mm
+
+A = 0.00456*1000*1000;
+format shortG
+
+total_droplets = sum(droplet_dist_unfilt,1)./0.00456
+
+% Convert to rainfall  in mm - multiply number of droplets by the volume of
+% each to get total rain volume in mm^3 then divide by area of disdrometer
+droplet_volumes_filt = volumes.*droplet_dist_filt./A; 
 
 droplet_volumes_unfilt = volumes.*droplet_dist_unfilt./A;
 
 
-% Sum across timesteps and 
+% Sum across timesteps and droplet diameters
 rainfall_filt = sum(droplet_volumes_filt,"all")
 rainfall_unfilt = sum(droplet_volumes_unfilt,"all")
 

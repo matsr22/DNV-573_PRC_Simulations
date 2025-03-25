@@ -1,0 +1,91 @@
+function input_values = GetSpringerStrength(coatingName)
+    
+    % This code sets up the springer simulation so that when running, the minimum number of calculations have to be performed
+    
+    % Constants of the Simulation
+
+    %Import the material
+    ret_table = readtable("Simulation_Data\RET_Data.xlsx");
+    specific_dataset = ret_table.(coatingName);
+    
+    % These values are for water
+    
+    Z_l = 1484000;%Impedance
+    c_l = 1480;%Speed of Sound
+     
+    % The following are turbine specific
+    % (All in base SI units)
+    % Impedance of substrate + coating
+    Z_s = specific_dataset(1);
+    Z_c = specific_dataset(2);
+
+    % Speed of sound in coating
+    c_c = specific;
+    % Thickness of coating
+    h_c = 0.6;
+    
+    % Assume normal incidence of droplets
+    alpha = 0;
+
+    % Equations
+    
+    Z_frac = @(Z_1,Z_2) (Z_1 - Z_2) / (Z_1 + Z_2);
+    Theta = @(d) (c_c / c_l) .* ((1 + Z_l / Z_s) ./ (1 + Z_c / Z_s)) .* (2 ./ (1 + Z_l / Z_c)) .* (d ./ h_c);
+    K_Bar = @(d) (1-exp(-Theta(d)))./(1-Z_frac(Z_s,Z_c)*Z_frac(Z_l,Z_c));
+    HammerPressure = @(v) (Z_l .* v .* cosd(alpha)) ./ (1 + (Z_l ./ Z_c));
+    HammerStress = @(d,v) ((1 + Z_frac(Z_s, Z_c)) / (1 - Z_frac(Z_s, Z_c) * Z_frac(Z_l, Z_c))) .* (1- Z_frac(Z_s, Z_c)*((1 + Z_frac(Z_l, Z_c)) / (1 + Z_frac(Z_s, Z_c))).*((1 - exp(-Theta(d))) ./ Theta(d))) .* HammerPressure(v);
+    RawStrength = @(S_ec,d) (1+2*K_Bar(d)*abs(Z_frac(Z_s,Z_c)))*S_ec;
+    ModifiedStrength = @(S_c,d) S_c./(1+2*K_Bar(d).*abs(Z_frac(Z_s,Z_c)));
+
+    % Used in absence of the springer strength
+    [m,raw_springer] = CalculateSpringerConstant(HammerStress,RawStrength)
+
+    % This line gives the raw strength from the RENER paper
+    m = 4.97;
+    raw_springer = 9.002E9; % Check later - difference
+
+    input_values = struct('raw_springer', raw_springer, 'm', m, ...
+        'ModifiedStrength', ModifiedStrength, 'HammerStress', HammerStress);
+end
+
+function [m,raw_springer] = CalculateSpringerConstant(HammerStress,RawStrength)
+% Following lines Calculate the Raw Strength of the Material - if unknown
+
+% Note this code may not entirely complete
+
+v_chosen = 100; % This is the value extracted from the 95/95 V-N fit to be used in calculation of the springer constant
+
+% The following code is used to run the RET analysis
+%{
+        VNdf = readtable('VN-Data.xlsx');
+        X = VNdf{:, 'V'};
+        Y = VNdf{:, 'N'};
+        Y = Y *1e-6;
+        [xConf,yConf,m,b] = regression_confidence(X,Y);
+        if ~((min(xConf) < v_chosen) && (v_chosen < max(xConf)))
+            error("V_chosen not in range of input")
+        end
+        Nfit = interp1(xConf,yConf,v_chosen)
+%}
+
+
+importret = load("Simulation_Data\RENER2024\RETData.mat");
+
+[a,m,d_ret,v_ret] = Get_Ret_Data(coatingName);
+
+Nfit = 10^6*exp(log(b) - m *log(v_chosen)) % Coefficent out the front to convert from mm^2 to m^2
+
+springer_inital_modified = HammerStress(d_ret, v_chosen) * ((Nfit*d_ret^2)/8.9)^(1/m)
+
+
+raw_springer = RawStrength(springer_inital_modified,d_ret);
+end
+
+function [a,m,d_ret,v_ret] = Get_Ret_Data(coatingName)
+    ret_table = readtable("Simulation_Data\RET_Data.xlsx");
+    specific_dataset = ret_table.(coatingName);
+    a = specific_dataset(1);
+    m = specific_dataset(2);
+    d_ret = specific_dataset(3);
+    v_ret = specific_dataset(4);
+end

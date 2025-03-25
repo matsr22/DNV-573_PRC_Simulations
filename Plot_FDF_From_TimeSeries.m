@@ -1,0 +1,59 @@
+function Plot_FDF_From_TimeSeries
+    % Re-construct FDF:
+    if use_exact_w_s % If the calculations in the code are not being simplified, simplify here
+        [w_calc,d_calc] = LoadMeasuredDSD("Simulation_Data\RENER2024\myMap_turbine.mat");
+        [~, indices] = min(abs(wind_velocities(:) - w_calc), [], 2); % Gets for each exact wind velocity, the index of the wind velocity that is the bin this velocity falls under
+        wind_velocities = w_calc(indices)';
+    end
+    if (fdf_variable_chosen == 1)
+        damages_FDF =  zeros(length(w_calc),length(d_calc));
+        for x=1:length(w_calc)
+            wind = w_calc(x);
+            mask = (wind_velocities == wind);
+            damages_FDF(x,:) = sum(damages(mask, :), 1);
+        end
+        SpeedDropletPlot(d_bins,damages_FDF,"n/N - Time Series")
+        hold on;
+        clim([0 0.05]) % To match the damage scale used in the paper - for comparison
+        hold off;
+    elseif fdf_variable_chosen == 2
+        mass_weighted_d_bins = d_bins; % Inserted so that bins for the plotting of mass weighted diameters can be modified
+        mass_weighted_d_mid = (mass_weighted_d_bins(1:end-1)-mass_weighted_d_bins(2:end))./2;
+        mass_w_diameters = sum(n_s.*d_calc.^4,2)./sum(n_s.*d_calc.^3,2); % Gets the mass weighted diameter for each
+
+        [~, indices] = min(abs(mass_w_diameters - d_calc), [], 2);
+        mass_w_diameters_q = d_calc(indices)';
+
+        for w= 1:length(w_calc)
+            for d =  1:length(d_calc)
+                wind = w_calc(w);
+                m_w_d = d_calc(d);
+                damages_m_w_d(w,d) = sum(damages(wind == wind_velocities & m_w_d == mass_w_diameters_q,:),"all");
+            end
+        end
+        SpeedDropletPlot(d_bins,damages_m_w_d,"n/N - Mass Weighted Diameter")
+        hold on;
+        clim([0 0.05]) % To match the damage scale used in the paper - for comparison
+        hold off;
+    elseif fdf_variable_chosen == 3
+        rainfall_totals = sum(n_droplets_air.*(4/3).*pi.*(d_calc./2).^3,2);
+        rainfall_bins = logspace(log10(5000),log10(max(rainfall_totals)),23);
+
+        rainfall_mids = (rainfall_bins(1:end-1)+rainfall_bins(2:end))./2;
+
+        [~,indices] = min(abs(rainfall_totals-rainfall_mids),[],2);
+
+        rainfall_tot_q = rainfall_mids(indices)';
+        for w= 1:length(w_calc)
+            for r =  1:length(rainfall_mids)
+                wind = w_calc(w);
+                rainfall = rainfall_mids(r);
+                damages_rainfall(w,r) = sum(damages(wind == wind_velocities & rainfall == rainfall_tot_q,:),"all");
+            end
+        end
+        SpeedDropletPlot(rainfall_bins,damages_rainfall,"n/N - Rainfall")
+        hold on;
+        ylabel("rainfall [mm]");
+        hold off;
+    end
+end

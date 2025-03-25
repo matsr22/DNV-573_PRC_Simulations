@@ -1,6 +1,6 @@
-function velocity = WindToBladeVelocity(input_windspeed,radius)
-
-    WTDF = load("Simulation_Data\RENER2024\wind_omega_5MW.mat");
+function velocity = WindToBladeVelocity(input_windspeed,radius,turbine_power)
+    
+    WTDF = load(append("Simulation_Data\RENER2024\Turbine_Data_",string(turbine_power),"MW.mat"));
     W_sp = WTDF.windSpeed;
     omega = WTDF.omega;
 

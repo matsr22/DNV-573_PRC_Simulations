@@ -1,11 +1,19 @@
 % This code is used to plot any grid like results 
-function SpeedDropletPlot(dropSizes,matrix,myTitle)
+function SpeedDropletPlot(y_bins,matrix,myTitle,x_bins,y_label,x_label)
+
+    if nargin < 4
+        x_bins = 0:30;
+    end
+    if nargin<5
+        y_label = "d [mm]";
+    end
+    if nargin<6
+        x_label = "V_w [m/s]";
     figure;
     hold on;
 % Use "imagesc" to plot the matrix, this will create a "grid" view
     matrix = flip(matrix,2);
-    dropSizes = flip(dropSizes);
-    dropSizes = dropSizes(1:length(dropSizes));
+    y_bins = flip(y_bins);
     matrix(isinf(matrix)) = 0;
     matrix = matrix';
 
@@ -23,27 +31,27 @@ function SpeedDropletPlot(dropSizes,matrix,myTitle)
     set(gca, 'GridColor', 'w','GridLineStyle',':','GridLineWidth',1);
 
     % Label the axes and give a title to the plot
-    xlabel("V_w [m/s]")
-    ylabel("d [mm]")
+    xlabel(x_label)
+    ylabel(y_label)
     title(myTitle);
-    ticks{1}="0";
-    ticksW{1}="0";
-    tickDef = 1:length(dropSizes);
-    for i =tickDef
-        ticks{i} =num2str(dropSizes(i)); 
+    ticksX{1}=x_bins(1);
+    tickyDef = 1:length(y_bins);
+    tickxDef = 1:length(x_bins);
+    for i =tickyDef
+        ticksY{i} =num2str(y_bins(i),4); 
     end
-    for i=1:30/5
-        ticksW{i+1} =num2str(i*5);
+    for i=1:(length(x_bins)-1)/5
+        ticksX{i+1} =num2str(i*5);
     end
-    xticks(0.5:5:30.5)
-    xticklabels(ticksW)
-    yticks(0.5:22.5)
-    yticklabels(ticks)
+    xticks(0.5:5:length(x_bins)-0.5)
+    xticklabels(ticksX)
+    yticks(0.5:length(y_bins)-0.5)
+    yticklabels(ticksY)
 
 
 
     pbaspect([1 1 1])
-    axis([0.5 30.5 0.5 22.5])
+    axis([0.5 length(x_bins)-0.5 0.5 length(y_bins)-0.5])
 
 
 

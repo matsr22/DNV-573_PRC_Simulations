@@ -1,0 +1,18 @@
+% Adds the terminal velocity and droplet size bins to the data
+
+DT = 10;
+Folder1 = "..\Simulation_Data\Lampedusa\filtered\2023\";
+Folder2 = "";
+
+dataset = (load(append(Folder1,"Lampedusa_filt_",string(DT),"min_data",Folder2,".mat")));
+dataset2 = load(append("..\Simulation_Data\Time_Series_Lancaster\10min_data_filt.mat")));
+
+fields_to_copy = fieldnames(dataset2);
+fields_to_cop
+
+dataset{2} = dataset2{2};
+dataset{3} = dataset2{3};
+
+dataset = cell2struct(dataset);
+save(append(Folder1,string(DT),"min_data_filt.mat"),"-struct","dataset");
+

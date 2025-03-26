@@ -5,7 +5,7 @@ Folder1 = "..\Simulation_Data\Lampedusa\filtered\2023\";
 Folder2 = "";
 
 dataset = (load(append(Folder1,"Lampedusa_filt_",string(DT),"min_data",Folder2,".mat")));
-dataset2 = load(append("..\Simulation_Data\Time_Series_Lancaster\10min_data_filt.mat")));
+dataset2 = load(append("..\Simulation_Data\Lancaster\10min_data_filt.mat")));
 
 fields_to_copy = fieldnames(dataset2);
 fields_to_cop

@@ -46,3 +46,17 @@ function [xConfidence, yConfidence,m,b] = regression_confidence(Xdata, Ydata, co
     m = -slope;
     b=exp(intercept);
 end
+
+
+% The following code is used to run the RET analysis
+%{
+        VNdf = readtable('VN-Data.xlsx');
+        X = VNdf{:, 'V'};
+        Y = VNdf{:, 'N'};
+        Y = Y *1e-6;
+        [xConf,yConf,m,b] = regression_confidence(X,Y);
+        if ~((min(xConf) < v_chosen) && (v_chosen < max(xConf)))
+            error("V_chosen not in range of input")
+        end
+        Nfit = interp1(xConf,yConf,v_chosen)
+%}

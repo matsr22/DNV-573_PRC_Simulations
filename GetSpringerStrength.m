@@ -54,31 +54,16 @@ end
 function [m,raw_springer] = CalculateSpringerConstant(HammerStress,RawStrength,coatingName)
 % Following lines Calculate the Raw Strength of the Material - if unknown
 
-% Note this code may not entirely complete
-
-% The following code is used to run the RET analysis
-%{
-        VNdf = readtable('VN-Data.xlsx');
-        X = VNdf{:, 'V'};
-        Y = VNdf{:, 'N'};
-        Y = Y *1e-6;
-        [xConf,yConf,m,b] = regression_confidence(X,Y);
-        if ~((min(xConf) < v_chosen) && (v_chosen < max(xConf)))
-            error("V_chosen not in range of input")
-        end
-        Nfit = interp1(xConf,yConf,v_chosen)
-%}
+% Note this code may not entirely complete - UPDATE 25/03/2025 - It is
+% possible the RET values in the paper were simply incorrect. 
 
 
-importret = load("Simulation_Data\RENER2024\RETData.mat");
+
 
 [a,m,d_ret,v_ret] = Get_Ret_Data(coatingName);
 
 
-
-Nfit = 1e6*exp(log(a) - m *log(v_ret)) % Coefficent out the front to convert from mm^2 to m^2
-
-Nfit = 1e6* a *v_ret^(-m) % Coefficent out the front to convert from mm^2 to m^2
+Nfit = 1e6* a *v_ret^(-m); % Coefficent out the front to convert from mm^2 to m^2
 
 springer_inital_modified = HammerStress(d_ret, v_ret) * ((Nfit*d_ret^2)/8.9)^(1/m);
 

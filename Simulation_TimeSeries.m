@@ -7,21 +7,21 @@ close all
 %
 
 turbine_used = 5;% Gives the power of the turbine to be considered - Currently only works for the 5MW turbine and 15MW
-coating_used = "x3M_Case_2";
+coating_used = "RENER2024";
 
 use_filtered_data = true;
 consider_all_strips = false; % Controls if all strips are calculated or just the outer one
 consider_terminal_velocities = true; % If false sets all terminal velocities to 1, as is done in the joint FDF
 use_measured_terminal_velocites = true; % If considering terminal velocities, use measured rather than emperical
-plot_fdf = false; % Controls if the simulation is plotted on fdfs 
+plot_fdf = true; % Controls if the simulation is plotted on fdfs 
 use_exact_w_s = true; % Controls if the exact wind speed is used or if the wind is placed into bins and then the average of that bin is used
 fdf_plotting_variables = ["Droplet_Diameter","Mass_Weighted_Diameter","Rainfall"];
-fdf_variable_chosen = 2;
+fdf_variable_chosen = 3;
 
 DT = 10; % Time step of the data expressed in minutes
 
 
-strip_radii = load(append("C:\Users\matth\Documents\MATLAB\DNV matlab code\Simulation_Data\RENER2024\Turbine_Data_",string(turbine_used),"MW.mat"),"radii"); % Strips, indexed 1 to 6 of those considered in the paper
+strip_radii = load(append("C:\Users\matth\Documents\MATLAB\DNV matlab code\Simulation_Data\Turbine_Curves\Turbine_Data_",string(turbine_used),"MW.mat"),"radii"); % Strips, indexed 1 to 6 of those considered in the paper
 strip_radii = strip_radii.radii;
 
 if use_filtered_data
@@ -40,7 +40,7 @@ end
 % Import Data
 %
 
-imported_structure = struct2cell(load(append("Simulation_Data\Time_Series_Lancaster\",string(DT),"min_data_",suffix,".mat")));% Using the non-filtered data to match the joint FDF
+imported_structure = struct2cell(load(append("Simulation_Data\Lancaster\",string(DT),"min_data_",suffix,".mat")));% Using the non-filtered data to match the joint FDF
 
 
 for i = strip_index
@@ -125,12 +125,10 @@ damages = n_s./allowed_impingements;
 
 time_series_damage = sum(damages,2); % Gets the damage for every timestep
 
+
 droplet_diameter_damage = sum(damages,1); % Gets the damage for each droplet diameter
 
-
-
 total_damage = sum(damages,'all');
-total_droplets = sum(n_s, 'all')
 strip_damage(i) = total_damage;
 strip_hours(i) = (1/total_damage)*356*24; % This was one of the differences between the Rome research team's results and mine, I am using the correct slightly modified number of days in the dataset, they were using number of days in a year
 
@@ -164,15 +162,21 @@ if plot_fdf
         [~, indices] = min(abs(mass_w_diameters - d_calc), [], 2);
         mass_w_diameters_q = d_calc(indices)';
 
-        damages_FDF =  zeros(length(w_calc),length(d_calc));
+        damages_m_w_d =  zeros(length(w_calc),length(d_calc));
+        frequency_m_w_d =  zeros(length(w_calc),length(d_calc));
+        erosibility_m_w_d =  zeros(length(w_calc),length(d_calc));
         for w= 1:length(w_calc)
             for d =  1:length(d_calc)
                 wind = w_calc(w);
                 m_w_d = d_calc(d);
                 damages_m_w_d(w,d) = sum(damages(wind == wind_velocities & m_w_d == mass_w_diameters_q,:),"all");
+                frequency_m_w_d(w,d) = sum(n_s(wind == wind_velocities & m_w_d == mass_w_diameters_q,:),"all");
+                erosibility_m_w_d(w,d) = sum(allowed_impingements(wind == wind_velocities & m_w_d == mass_w_diameters_q,:),"all");
             end
         end
         SpeedDropletPlot(d_bins,damages_m_w_d,"n/N - Mass Weighted Diameter")
+        SpeedDropletPlot(d_bins,frequency_m_w_d,"Frequency - Mass Weighted Diameter")
+        SpeedDropletPlot(d_bins,log(erosibility_m_w_d),"Erosability - Mass Weighted Diameter")
     elseif fdf_variable_chosen == 3
         rainfall_totals = sum(n_droplets_air.*(4/3).*pi.*(d_calc./2).^3,2);
         rainfall_bins = logspace(log10(5000),log10(max(rainfall_totals)),23);
@@ -182,14 +186,26 @@ if plot_fdf
         [~,indices] = min(abs(rainfall_totals-rainfall_mids),[],2);
 
         rainfall_tot_q = rainfall_mids(indices)';
+
+        damages_rainfall = zeros(length(w_calc),length(rainfall_mids))
         for w= 1:length(w_calc)
             for r =  1:length(rainfall_mids)
                 wind = w_calc(w);
                 rainfall = rainfall_mids(r);
                 damages_rainfall(w,r) = sum(damages(wind == wind_velocities & rainfall == rainfall_tot_q,:),"all");
+                frequency_rainfall(w,r) = sum(n_s(wind == wind_velocities & rainfall == rainfall_tot_q,:),"all");
+                erosability_rainfall(w,r) = sum(allowed_impingements(wind == wind_velocities & rainfall == rainfall_tot_q,:),"all");
             end
         end
         SpeedDropletPlot(rainfall_bins,damages_rainfall,"n/N - Rainfall")
+        hold on;
+        ylabel("rainfall [mm]");
+        hold off;
+        SpeedDropletPlot(rainfall_bins,frequency_rainfall,"Number_Impingements - Rainfall")
+        hold on;
+        ylabel("rainfall [mm]");
+        hold off;
+        SpeedDropletPlot(rainfall_bins,1./erosability_rainfall,"Erosability - Rainfall")
         hold on;
         ylabel("rainfall [mm]");
         hold off;

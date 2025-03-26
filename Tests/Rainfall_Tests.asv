@@ -11,8 +11,8 @@ d_position = 2; % Controls if the lower end of the bin - The droplet diameters p
 
 DT = 10; % Controls what time resolution is used for the simulation
 
-%imported_structure_filt = struct2cell(load(append("..\Simulation_Data\Time_Series_Lancaster\",num2str(DT),"min_data_filt.mat")));% Using the filtered data that Alessio has produced
-%imported_structure_unfilt = struct2cell(load(append("..\Simulation_Data\Time_Series_Lancaster\",num2str(DT),"min_data_unfilt.mat")));% Using the non-filtered data to match the joint FDF
+%imported_structure_filt = struct2cell(load(append("..\Simulation_Data\Lancaster\",num2str(DT),"min_data_filt.mat")));% Using the filtered data that Alessio has produced
+%imported_structure_unfilt = struct2cell(load(append("..\Simulation_Data\Lancaster\",num2str(DT),"min_data_unfilt.mat")));% Using the non-filtered data to match the joint FDF
 
 imported_structure_filt = struct2cell(load(append("..\Simulation_Data\Lecce\Lecce_filt_",num2str(DT),"min_data.mat")));% Using the non-filtered data to match the joint FDF
 imported_structure_unfilt = struct2cell(load(append("..\Simulation_Data\Lecce\Lecce_nofilt_",num2str(DT),"min_data.mat")));% Using the non-filtered data to match the joint FDF

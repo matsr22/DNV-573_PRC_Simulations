@@ -8,7 +8,7 @@ close all
 
 DT = 60;
 
-imported_structure = struct2cell(load(append("..\Simulation_Data\Time_Series_Lancaster\",string(DT),"min_data_filt.mat")));
+imported_structure = struct2cell(load(append("..\Simulation_Data\Lancaster\",string(DT),"min_data_filt.mat")));
 
 wind_droplet_table = imported_structure{1};
 

@@ -6,14 +6,16 @@ close all
 % Configuration of the Simulation
 %
 
-turbine_used = 5;% Gives the power of the turbine to be considered - Currently only works for the 5MW turbine and 15MW
-coating_used = "RENER2024";
+turbine_used = "15MW";% Gives which turbine is considered by the analysis options: [3MW] WINDPACT Turbine, [5MW] NREL Turbine and [15MW] NREL Turbine
+coating_used = 'AAP'; % Alters the coating properties used in the analysis, options: [AAP] (from the RENER2024 paper), [ThreeM] (Case 2 in Sanchez Et al), [ORE] (Case 3 in Sanchez Et al)
+location_considered = "Lampedusa"; % Determines which location is being analysed, options: [Lancaster], [Lecce], [Lampedusa]
 
 use_filtered_data = true;
-consider_all_strips = false; % Controls if all strips are calculated or just the outer one
+consider_all_strips = true; % Controls if all strips are calculated or just the outer one
+use_extrapolated_wind_data = true;
 consider_terminal_velocities = true; % If false sets all terminal velocities to 1, as is done in the joint FDF
-use_measured_terminal_velocites = true; % If considering terminal velocities, use measured rather than emperical
-plot_fdf = true; % Controls if the simulation is plotted on fdfs 
+use_measured_terminal_velocites = false; % If considering terminal velocities, use measured rather than emperical
+plot_fdf = false; % Controls if the simulation is plotted or if just damage values are shown
 use_exact_w_s = true; % Controls if the exact wind speed is used or if the wind is placed into bins and then the average of that bin is used
 fdf_plotting_variables = ["Droplet_Diameter","Mass_Weighted_Diameter","Rainfall"];
 fdf_variable_chosen = 3;
@@ -21,7 +23,7 @@ fdf_variable_chosen = 3;
 DT = 10; % Time step of the data expressed in minutes
 
 
-strip_radii = load(append("C:\Users\matth\Documents\MATLAB\DNV matlab code\Simulation_Data\Turbine_Curves\Turbine_Data_",string(turbine_used),"MW.mat"),"radii"); % Strips, indexed 1 to 6 of those considered in the paper
+strip_radii = load(append("C:\Users\matth\Documents\MATLAB\DNV matlab code\Simulation_Data\Turbine_Curves\Turbine_Data_",turbine_used,".mat"),"radii"); % Strips, indexed 1 to 6 of those considered in the paper
 strip_radii = strip_radii.radii;
 
 if use_filtered_data
@@ -36,11 +38,25 @@ else
     strip_index = 6;
 end
 
+% Modifies the file accessed to be that specific to the extrapolation
+% required of each turbine. 5MW not added as this is not yet relevant to
+% analysis we are doing. 
+if use_extrapolated_wind_data
+    if turbine_used == "3MW"
+        suffix = append(suffix,"_119_ext");
+    elseif turbine_used == "15MW"
+        suffix = append(suffix,"_150_ext");
+    end
+end
 %
 % Import Data
 %
 
-imported_structure = struct2cell(load(append("Simulation_Data\Lancaster\",string(DT),"min_data_",suffix,".mat")));% Using the non-filtered data to match the joint FDF
+imported_structure = struct2cell(load(append("Simulation_Data\",location_considered,"\",string(DT),"min_data_",suffix,".mat"))); 
+
+% Remove Timestamps in the data with NaN values
+
+
 
 
 for i = strip_index

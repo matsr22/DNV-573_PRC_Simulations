@@ -1,0 +1,1 @@
+Files in this folder are for most days in 2024. The ext files are for the extrapolated wind at different heights. (1st of January to 18th December)

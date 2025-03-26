@@ -42,8 +42,8 @@ function input_values = GetSpringerStrength(coatingName)
     [m,raw_springer] = CalculateSpringerConstant(HammerStress,RawStrength,coatingName);
     % 
     % % This line gives the raw strength from the RENER paper
-    % m = 4.97;
-    % raw_springer = 9.002E9; % Check later - difference
+     m = 4.97;
+     raw_springer = 9.002E9; % Check later - difference
 
     modified_springer = ModifiedStrength(raw_springer,2.61);
 

@@ -6,7 +6,6 @@ function input_values = GetSpringerStrength(coatingName)
 
     %Import the material
     coating_table = readtable("Simulation_Data\Coating_Properties.xlsx");
-    coating_table.Properties.VariableNames
     specific_dataset = coating_table.(coatingName);
     
     % These values are for water
@@ -44,8 +43,7 @@ function input_values = GetSpringerStrength(coatingName)
     % % This line gives the raw strength from the RENER paper
      m = 4.97;
      raw_springer = 9.002E9; % Check later - difference
-
-    modified_springer = ModifiedStrength(raw_springer,2.61);
+    
 
     input_values = struct('raw_springer', raw_springer, 'm', m, ...
         'ModifiedStrength', ModifiedStrength, 'HammerStress', HammerStress);

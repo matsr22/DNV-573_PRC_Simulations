@@ -25,7 +25,7 @@ function [w_bins,d_bins,w_mid,d_mid,matrix] = LoadStatisticalDSD(w_weibull_param
     a = @(R) 1.3*R.^0.232;
     k_B = 2.25;
 
-    best = @(D,R) (W(R)./V(D)) .* ((k_B*D.^(k_B-1))./(a(R).^k_B)).*exp(-(D./a(R)).^k_B);
+    best_distribution = @(D,R) (W(R)./V(D)) .* ((k_B*D.^(k_B-1))./(a(R).^k_B)).*exp(-(D./a(R)).^k_B);
 
     if length(rainfall) == 3
         total_rainfall = rainfall(1);
@@ -42,7 +42,7 @@ function [w_bins,d_bins,w_mid,d_mid,matrix] = LoadStatisticalDSD(w_weibull_param
 
 
 
-    combined_rain_best = @(D,R) rainfall_fdf(R).*best(D,R);
+    combined_rain_best = @(D,R) rainfall_fdf(R).*best_distribution(D,R);
 
     
 

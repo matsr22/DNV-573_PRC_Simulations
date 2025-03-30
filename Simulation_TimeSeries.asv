@@ -1,24 +1,23 @@
 
-close all
-
 
 %
 % Configuration of the Simulation
 %
 
-turbine_used = "5MW";% Gives which turbine is considered by the analysis options: [3MW] WINDPACT Turbine, [5MW] NREL Turbine and [15MW] NREL Turbine
-coating_used = "APP"; % Alters the coating properties used in the analysis, options: [APP] (from the RENER2024 paper), [ThreeM] (Case 2 in Sanchez Et al), [ORE] (Case 3 in Sanchez Et al)
-location_considered = "Lancaster" % Determines which location is being analysed
+turbine_used = "3MW";% Gives which turbine is considered by the analysis options: [3MW] WINDPACT Turbine, [5MW] NREL Turbine and [15MW] NREL Turbine
+coating_used = 'AAP'; % Alters the coating properties used in the analysis, options: [AAP] (from the RENER2024 paper), [ThreeM] (Case 2 in Sanchez Et al), [ORE] (Case 3 in Sanchez Et al)
+location_considered = "Lancaster"; % Determines which location is being analysed, options: [Lancaster], [Lecce], [Lampedusa]
 
 use_filtered_data = true;
-consider_all_strips = false; % Controls if all strips are calculated or just the outer one
-use_extrapolated_wind_data = false;
+consider_all_strips = true; % Controls if all strips are calculated or just the outer one
+use_extrapolated_wind_data = true;
 consider_terminal_velocities = true; % If false sets all terminal velocities to 1, as is done in the joint FDF
-use_measured_terminal_velocites = true; % If considering terminal velocities, use measured rather than emperical
-plot_fdf = true; % Controls if the simulation is plotted or if just damage values are shown
+use_measured_terminal_velocites = false; % If considering terminal velocities, use measured rather than emperical
+use_best_distribution = true;
+plot_fdf = false; % Controls if the simulation is plotted or if just damage values are shown
 use_exact_w_s = true; % Controls if the exact wind speed is used or if the wind is placed into bins and then the average of that bin is used
 fdf_plotting_variables = ["Droplet_Diameter","Mass_Weighted_Diameter","Rainfall"];
-fdf_variable_chosen = 3;
+fdf_variable_chosen = 1;
 
 DT = 10; % Time step of the data expressed in minutes
 
@@ -38,26 +37,35 @@ else
     strip_index = 6;
 end
 
+% Modifies the file accessed to be that specific to the extrapolation
+% required of each turbine. 5MW not added as this is not yet relevant to
+% analysis we are doing. 
 if use_extrapolated_wind_data
-    if turbine_used == "3MW" | turbine_used == "5MW"
-        suffix = append(suffix,"_119")
-
+    if turbine_used == "3MW"
+        suffix = append(suffix,"_119_ext");
+    elseif turbine_used == "15MW"
+        suffix = append(suffix,"_150_ext");
+    end
+end
 %
 % Import Data
 %
 
-imported_structure = struct2cell(load(append("Simulation_Data\",Lancaster,"\",string(DT),"min_data_",suffix,".mat"))); 
+imported_structure = struct2cell(load(append("Simulation_Data\",location_considered,"\",string(DT),"min_data_",suffix,".mat"))); 
 
+% Remove Timestamps in the data with NaN values
 
-for i = strip_index
-
-% Load in time series data:
 wind_droplet_table = imported_structure{1};
 
 
+wind_droplet_table = wind_droplet_table(~isnan(wind_droplet_table.("wind_avg")), :);
+
+data_quantity_days = (size(wind_droplet_table,1) * DT)/(60*24);
+
+% Load in time series data:
+
 d_bins = [imported_structure{2} 10]; % The bins are provided by the definition by Elisa, both lower and upper defined
 terminal_v_bins = [0 imported_structure{3} 20]; % The bins are provided for both upper and lower by Elisa 
-
 
 % Generates a vector of the variables of the joint size velocity
 % distribution indexes
@@ -65,6 +73,12 @@ for x = 1:440
     svd_indexing(x) = append("svd_",string(x-1));
 end
 
+% The diameters and velocities assosiated with each of the bins in svd 
+% Use the midpoint for both
+d_calc = (d_bins(1:end-1) + d_bins(2:end))./2; 
+
+for i = strip_index
+if ~ use_best_distribution
 % Gets the collumns of the joint SVD from the table
 svd = wind_droplet_table{:,svd_indexing};
 svdSize = size(svd);
@@ -72,13 +86,41 @@ svdSize = size(svd);
 % Gives a matrix with terminal velocities on the first axis and droplet diameters on the second
 svd = reshape(svd', 20, 22, svdSize(1));  
 
+if  consider_terminal_velocities & use_measured_terminal_velocites
+    t_v_calculations = (terminal_v_bins(1:end-1) +terminal_v_bins(2:end))./2; % Currently Gets the midpoint of each of the terminal velocities
+    [svd_diameters,svd_vels] = meshgrid(d_calc,t_v_calculations); % Creates grid with 1-1 correspondence with the Size-Velocity Distribution with the droplet size and velocity at each point
+    svd = svd./(svd_vels); % Area converts from Impacts to per m^2, then the terminal velocity of the drops gives per m^3 (Time ommited as it cancels later - see Incident_Droplet_Calculations.pdf for an explanation)
+end
+n_droplets_air = sum(svd,1)./(DT*60); % Sum across all droplet terminal velocities
+n_droplets_air = permute(n_droplets_air,[3 2 1]); % Remove droplet terminal velocity dimension
 
+A = 0.00456; % area in m^2 of sensor
+n_droplets_air = n_droplets_air./A;
+else
+    rainfalls = wind_droplet_table.rainfall_mm_hr; % Gives the rainfall in mm/hr for each interval
 
-% The diameters and velocities assosiated with each of the bins in svd 
-% Use the midpoint for both
-d_calc = (d_bins(1:end-1) + d_bins(2:end))./2; 
+    efficency_threshold = 1e-8; %Sets the threshold at which below this, calculating the integral is ignored to save computation power without affecting the result
+    
+    W = @(R) 67*R.^0.846; % Rainfall is input in mm_hr in this context
+    V = @(D) (1/6)*pi*(D.^3);
+    a = @(R) 1.3*R.^0.232;
+    k_B = 2.25;
+    best_distribution = @(D,R) (W(R)./V(D)) .* ((k_B*D.^(k_B-1))./(a(R).^k_B)).*exp(-(D./a(R)).^k_B);
+    n_droplets_air = zeros(length(rainfalls),length(d_calc));
+    for x = 1:length(rainfalls)
+        best_set_rainfall = @(D) best_distribution(D,rainfalls(x));
+        if rainfalls(x) == 0
+            n_droplets_air(x,:) = 0;
+        else
 
-
+            for u = 1:length(d_calc)
+                midpoint_value = best_set_rainfall(d_calc(u))*(d_bins(u+1)- d_bins(u+1));
+                if( )
+                n_droplets_air(x,u) = integral(best_set_rainfall,d_bins(u),d_bins(u+1));           
+            end   
+        end
+    end
+end
 
 % Wind speed at each timestep
 wind_velocities = wind_droplet_table{:,"wind_avg"};
@@ -99,14 +141,8 @@ impact_velocities = blade_velocities; % This line is included to allow for modif
 % Create matrix of number of droplets incident on blade per m^2
 
 
-if  consider_terminal_velocities & use_measured_terminal_velocites
-    t_v_calculations = (terminal_v_bins(1:end-1) +terminal_v_bins(2:end))./2; % Currently Gets the midpoint of each of the terminal velocities
-    [svd_diameters,svd_vels] = meshgrid(d_calc,t_v_calculations); % Creates grid with 1-1 correspondence with the Size-Velocity Distribution with the droplet size and velocity at each point
-    svd = svd./(svd_vels); % Area converts from Impacts to per m^2, then the terminal velocity of the drops gives per m^3 (Time ommited as it cancels later - see Incident_Droplet_Calculations.pdf for an explanation)
-end
-A = 0.00456; % area in m^2 of sensor
-svd = svd./A;
-n_droplets_air = sum(svd,1); % Sum across all droplet terminal velocities
+
+
 
 if consider_terminal_velocities & ~use_measured_terminal_velocites
     v_parametric = @(d) 9.65 - 10.3.*exp(-0.6.*d); % Provides the terminal velocity from only the measured values of the droplet size. This equation is a simplified one for the one that takes into account air density
@@ -114,9 +150,9 @@ if consider_terminal_velocities & ~use_measured_terminal_velocites
     n_droplets_air = n_droplets_air./t_v_from_diameters;
 end
 
-n_droplets_air = permute(n_droplets_air,[3 2 1]); % Remove droplet terminal velocity dimension
 
-n_s = n_droplets_air .* impact_velocities; % Convert back to per m^2 with the blade velocities (Ensuring data is along correct axis)
+
+n_s = n_droplets_air .* impact_velocities.*(DT*60); % Convert back to per m^2 with the blade velocities (Ensuring data is along correct axis)
 
 % Now creates a matrix with both the droplet diameters and blade velocities
 % for every droplet diameter bin for every time step.
@@ -136,94 +172,18 @@ droplet_diameter_damage = sum(damages,1); % Gets the damage for each droplet dia
 
 total_damage = sum(damages,'all');
 strip_damage(i) = total_damage;
-strip_hours(i) = (1/total_damage)*356*24; % This was one of the differences between the Rome research team's results and mine, I am using the correct slightly modified number of days in the dataset, they were using number of days in a year
+strip_hours(i) = (1/total_damage)*data_quantity_days*24; % This was one of the differences between the Rome research team's results and mine, I am using the correct slightly modified number of days in the dataset, they were using number of days in a year
 
 end
 
-% Places wind velocity into bins rather than using the exact value - for
-% comparison purposes and plotting
-if plot_fdf
-    % Re-construct FDF:
-    if use_exact_w_s % If the calculations in the code are not being simplified, simplify here
-        [w_calc,d_calc] = LoadMeasuredDSD("Simulation_Data\RENER2024\myMap_turbine.mat");
-        [~, indices] = min(abs(wind_velocities(:) - w_calc), [], 2); % Gets for each exact wind velocity, the index of the wind velocity that is the bin this velocity falls under
-        wind_velocities = w_calc(indices)';
-    end
-    if (fdf_variable_chosen == 1)
-        damages_FDF =  zeros(length(w_calc),length(d_calc));
-        for x=1:length(w_calc)
-            wind = w_calc(x);
-            mask = (wind_velocities == wind);
-            damages_FDF(x,:) = sum(damages(mask, :), 1);
-        end
-        SpeedDropletPlot(d_bins,damages_FDF,"n/N - Time Series")
-        hold on;
-        clim([0 0.05]) % To match the damage scale used in the paper - for comparison
-        hold off;
-    elseif fdf_variable_chosen == 2
-        mass_weighted_d_bins = d_bins; % Inserted so that bins for the plotting of mass weighted diameters can be modified
-        mass_weighted_d_mid = (mass_weighted_d_bins(1:end-1)-mass_weighted_d_bins(2:end))./2;
-        mass_w_diameters = sum(n_s.*d_calc.^4,2)./sum(n_s.*d_calc.^3,2); % Gets the mass weighted diameter for each
+Plotting_Algorithms(plot_fdf,use_exact_w_s,wind_velocities,fdf_variable_chosen,damages,d_bins,n_s,n_droplets_air);
 
-        [~, indices] = min(abs(mass_w_diameters - d_calc), [], 2);
-        mass_w_diameters_q = d_calc(indices)';
+total_drops_air_2 = sum(n_droplets_air*DT*60,1);
 
-        damages_m_w_d =  zeros(length(w_calc),length(d_calc));
-        frequency_m_w_d =  zeros(length(w_calc),length(d_calc));
-        erosibility_m_w_d =  zeros(length(w_calc),length(d_calc));
-        for w= 1:length(w_calc)
-            for d =  1:length(d_calc)
-                wind = w_calc(w);
-                m_w_d = d_calc(d);
-                damages_m_w_d(w,d) = sum(damages(wind == wind_velocities & m_w_d == mass_w_diameters_q,:),"all");
-                frequency_m_w_d(w,d) = sum(n_s(wind == wind_velocities & m_w_d == mass_w_diameters_q,:),"all");
-                erosibility_m_w_d(w,d) = sum(allowed_impingements(wind == wind_velocities & m_w_d == mass_w_diameters_q,:),"all");
-            end
-        end
-        SpeedDropletPlot(d_bins,damages_m_w_d,"n/N - Mass Weighted Diameter")
-        SpeedDropletPlot(d_bins,frequency_m_w_d,"Frequency - Mass Weighted Diameter")
-        SpeedDropletPlot(d_bins,log(erosibility_m_w_d),"Erosability - Mass Weighted Diameter")
-    elseif fdf_variable_chosen == 3
-        rainfall_totals = sum(n_droplets_air.*(4/3).*pi.*(d_calc./2).^3,2);
-        rainfall_bins = logspace(log10(5000),log10(max(rainfall_totals)),23);
-
-        rainfall_mids = (rainfall_bins(1:end-1)+rainfall_bins(2:end))./2;
-
-        [~,indices] = min(abs(rainfall_totals-rainfall_mids),[],2);
-
-        rainfall_tot_q = rainfall_mids(indices)';
-
-        damages_rainfall = zeros(length(w_calc),length(rainfall_mids))
-        for w= 1:length(w_calc)
-            for r =  1:length(rainfall_mids)
-                wind = w_calc(w);
-                rainfall = rainfall_mids(r);
-                damages_rainfall(w,r) = sum(damages(wind == wind_velocities & rainfall == rainfall_tot_q,:),"all");
-                frequency_rainfall(w,r) = sum(n_s(wind == wind_velocities & rainfall == rainfall_tot_q,:),"all");
-                erosability_rainfall(w,r) = sum(allowed_impingements(wind == wind_velocities & rainfall == rainfall_tot_q,:),"all");
-            end
-        end
-        SpeedDropletPlot(rainfall_bins,damages_rainfall,"n/N - Rainfall")
-        hold on;
-        ylabel("rainfall [mm]");
-        hold off;
-        SpeedDropletPlot(rainfall_bins,frequency_rainfall,"Number_Impingements - Rainfall")
-        hold on;
-        ylabel("rainfall [mm]");
-        hold off;
-        SpeedDropletPlot(rainfall_bins,1./erosability_rainfall,"Erosability - Rainfall")
-        hold on;
-        ylabel("rainfall [mm]");
-        hold off;
-    end
-
-    
-end
 
 disp('Incubation Time Predicted:')
 
 disp(strip_hours(strip_index))
-
 
 
 

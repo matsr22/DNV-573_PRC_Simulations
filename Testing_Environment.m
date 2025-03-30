@@ -38,5 +38,5 @@
 % 
 % %plot(droplet_velocities)
 
-GetSpringerStrength("x3M_Case_2");
+GetSpringerStrength("AAP_Corrected")
 

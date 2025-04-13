@@ -6,12 +6,12 @@
 % ---------------------------
 % Analysis - DATASET USED
 % ---------------------------
-location_considered = "Lancaster"; % Determines which location is being analysed, options: [Lancaster], [Lecce], [Lampedusa]
+location_considered = "Lampedusa"; % Determines which location is being analysed, options: [Lancaster], [Lecce], [Lampedusa]
 DT = 10; % Temporal Resolution of the Data, expressed in minutes
 % ---------------------------
 % Analysis - TURBINE OPTIONS
 % ---------------------------
-turbine_used = "15MW";% Gives which turbine is considered by the analysis options: [3MW] WINDPACT Turbine, [5MW] NREL Turbine and [15MW] NREL Turbine
+turbine_used = "3MW";% Gives which turbine is considered by the analysis options: [3MW] WINDPACT Turbine, [5MW] NREL Turbine and [15MW] NREL Turbine
 coating_used = 'AAP'; % Alters the coating properties used in the analysis, options: [AAP] (from the RENER2024 paper), [ThreeM] (Case 2 in Sanchez Et al), [ORE] (Case 3 in Sanchez Et al)
 consider_all_strips = false; % Controls if all strips are calculated or just the outermost one
 % ---------------------------
@@ -33,7 +33,15 @@ use_exact_w_s = true; % Controls if the exact wind speed is used or      the win
 % ---------------------------
 plot_fdf = true; % Controls if the simulation is plotted or if just damage values are shown
 fdf_plotting_variables = ["Droplet_Diameter","Mass_Weighted_Diameter","Rainfall","Drops_Air"];
-fdf_variable_chosen = 4;
+fdf_variable_chosen = 1;
+
+% ---------------------------
+% Analysis - PRECIPITATION REACTIVE CONTROL
+% ---------------------------
+enable_PRC = true;
+curtailing_wind_speed = 8; % Wind speed that curtailing occurs at when PRC criteria is met - must match one of the precalculated curves
+curtailing_criteria = ["Median_Diameter","Mass_Weighted_Diameter","Rainfall"];
+curtailing_criteria_chosen = 1;
 
 strip_radii = load(append("C:\Users\matth\Documents\MATLAB\DNV matlab code\Simulation_Data\Turbine_Curves\Turbine_Data_",turbine_used,".mat"),"radii"); % Strips, indexed 1 to 6 of those considered in the paper
 strip_radii = strip_radii.radii;
@@ -160,12 +168,42 @@ end
 % Convert the wind speeds to the corresponding speed of the blade at a
 % each index
 
-if 
+% PRECIPITATION REACTIVE CONTROL 
 
-blade_velocities = WindToBladeVelocity(wind_velocities,strip_radii(i),turbine_used);
+if enable_PRC
+    
+    % Prep the dataset for PRC - Calculate Mass_W_Diameter, Rainfall and
+    % Median. 
+
+    mass_weighted_diameters = sum(n_droplets_air.*d_calc.^4,2)./sum(n_droplets_air.*d_calc.^3,2); % Gets the mass weighted diameter for each
+    medians = median(n_droplets_air,2); 
+    rainfall_totals = sum(n_droplets_air.*(4/3).*pi.*(d_calc./2).^3,2);
+
+    mwd_criteria = 0.75;
+    median_criteria = 0.75;
+    rainfall_criteria = 1000;
+    switch curtailing_criteria_chosen
+        case 1
+            curtailing_locations = mass_weighted_diameters > mwd_criteria;
+        case 2
+            curtailing_locations = medians>median_criteria;
+        case 3
+            curtailing_locations = rainfall_totals > rainfall_criteria
+        otherwise 
+            error("Selected curtailing criteria does not exist")
+    end
+    
+    [impact_velocities, powers] = WindToBladeVelocity(wind_velocities,strip_radii(i),turbine_used,curtailing_locations,curtailing_wind_speed);
+    time_curtailed = DT*60*sum(curtailing_locations);
+   
 
 
+else
 
+[impact_velocities,powers] = WindToBladeVelocity(wind_velocities,strip_radii(i),turbine_used);
+end
+
+ total_energy_production = sum(2.77778e-10*(powers*DT))
 
 
 

@@ -19,7 +19,7 @@ if plot_fdf
     elseif fdf_variable_chosen == 2
         mass_weighted_d_bins = d_bins; % Inserted so that bins for the plotting of mass weighted diameters can be modified
         mass_weighted_d_mid = (mass_weighted_d_bins(1:end-1)-mass_weighted_d_bins(2:end))./2;
-        mass_w_diameters = sum(n_s.*d_calc.^4,2)./sum(n_s.*d_calc.^3,2); % Gets the mass weighted diameter for each
+        mass_w_diameters = sum(n_droplets_air.*d_calc.^4,2)./sum(n_droplets_air.*d_calc.^3,2); % Gets the mass weighted diameter for each
 
         [~, indices] = min(abs(mass_w_diameters - d_calc), [], 2);
         mass_w_diameters_q = d_calc(indices)';
@@ -36,8 +36,8 @@ if plot_fdf
             end
         end
         SpeedDropletPlot(d_bins,damages_m_w_d,"n/N - Mass Weighted Diameter")
-        SpeedDropletPlot(d_bins,log(frequency_m_w_d),"Frequency - Mass Weighted Diameter")
-        SpeedDropletPlot(d_bins,log(damages_m_w_d./frequency_m_w_d),"Erosability - Mass Weighted Diameter")
+        %SpeedDropletPlot(d_bins,log(frequency_m_w_d),"Frequency - Mass Weighted Diameter")
+        %SpeedDropletPlot(d_bins,log(damages_m_w_d./frequency_m_w_d),"Erosability - Mass Weighted Diameter")
     elseif fdf_variable_chosen == 3
         rainfall_totals = sum(n_droplets_air.*(4/3).*pi.*(d_calc./2).^3,2);
         rainfall_bins = logspace(log10(5000),log10(max(rainfall_totals)),23);

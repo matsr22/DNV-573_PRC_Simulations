@@ -3,24 +3,45 @@
 %
 % Configuration of the Simulation
 %
-
-turbine_used = "15MW";% Gives which turbine is considered by the analysis options: [3MW] WINDPACT Turbine, [5MW] NREL Turbine and [15MW] NREL Turbine
-coating_used = 'AAP'; % Alters the coating properties used in the analysis, options: [AAP] (from the RENER2024 paper), [ThreeM] (Case 2 in Sanchez Et al), [ORE] (Case 3 in Sanchez Et al)
+% ---------------------------
+% Analysis - DATASET USED
+% ---------------------------
 location_considered = "Lancaster"; % Determines which location is being analysed, options: [Lancaster], [Lecce], [Lampedusa]
-
+DT = 10; % Temporal Resolution of the Data, expressed in minutes
+% ---------------------------
+% Analysis - TURBINE OPTIONS
+% ---------------------------
+turbine_used = "3MW";% Gives which turbine is considered by the analysis options: [3MW] WINDPACT Turbine, [5MW] NREL Turbine and [15MW] NREL Turbine
+coating_used = 'AAP'; % Alters the coating properties used in the analysis, options: [AAP] (from the RENER2024 paper), [ThreeM] (Case 2 in Sanchez Et al), [ORE] (Case 3 in Sanchez Et al)
+consider_all_strips = false; % Controls if all strips are calculated or just the outermost one
+% ---------------------------
+% Analysis - RAINFALL OPTIONS
+% ---------------------------
 use_filtered_data = true;
-consider_all_strips = false; % Controls if all strips are calculated or just the outer one
-use_extrapolated_wind_data = true;
 consider_terminal_velocities = true; % If false sets all terminal velocities to 1, as is done in the joint FDF
 use_measured_terminal_velocites = false; % If considering terminal velocities, use measured rather than emperical
 use_best_distribution = false;
-plot_fdf = true; % Controls if the simulation is plotted or if just damage values are shown
+
+% ---------------------------
+% Analysis - WIND OPTIONS
+% ---------------------------
+use_extrapolated_wind_data = true;
 use_exact_w_s = true; % Controls if the exact wind speed is used or      the wind is placed into bins and then the average of that bin is used
+
+% ---------------------------
+% Analysis - PLOTTING OPTIONS
+% ---------------------------
+plot_fdf = true; % Controls if the simulation is plotted or if just damage values are shown
 fdf_plotting_variables = ["Droplet_Diameter","Mass_Weighted_Diameter","Rainfall","Drops_Air"];
-fdf_variable_chosen = 4;
+fdf_variable_chosen = 1;
 
-DT = 10; % Time step of the data expressed in minutes
-
+% ---------------------------
+% Analysis - PRECIPITATION REACTIVE CONTROL
+% ---------------------------
+enable_PRC = true;
+curtailing_wind_speed = 8; % Wind speed that curtailing occurs at when PRC criteria is met - must match one of the precalculated curves
+curtailing_criteria = ["Median_Diameter","Mass_Weighted_Diameter","Rainfall"];
+curtailing_criteria_chosen = 1;
 
 strip_radii = load(append("C:\Users\matth\Documents\MATLAB\DNV matlab code\Simulation_Data\Turbine_Curves\Turbine_Data_",turbine_used,".mat"),"radii"); % Strips, indexed 1 to 6 of those considered in the paper
 strip_radii = strip_radii.radii;
@@ -63,7 +84,7 @@ wind_droplet_table = wind_droplet_table(~isnan(wind_droplet_table.("wind_avg")),
 data_quantity_days = (size(wind_droplet_table,1) * DT)/(60*24);
 
 % --------------------------
-% Load in time series data:
+% Load in time series rain data:
 % --------------------------
 d_bins = [imported_structure{2} 10]; % The bins are provided by the definition by Elisa, both lower and upper defined
 terminal_v_bins = [0 imported_structure{3} 20]; % The bins are provided for both upper and lower by Elisa 
@@ -133,11 +154,12 @@ if consider_terminal_velocities & ~use_measured_terminal_velocites
 end
 end
 
-
-% Wind speed at each timestep
+% --------------------------
+% Load in time series wind data:
+% --------------------------
 wind_velocities = wind_droplet_table{:,"wind_avg"};
 
-if ~use_exact_w_s
+if ~ use_exact_w_s
      [w_calc,d_calc] = LoadMeasuredDSD("Simulation_Data\RENER2024\myMap_turbine.mat");
      [~, indices] = min(abs(wind_velocities(:) - w_calc), [], 2); % Gets for each exact wind velocity, the index of the wind velocity that is the bin this velocity falls under
      wind_velocities = w_calc(indices)';
@@ -146,19 +168,49 @@ end
 % Convert the wind speeds to the corresponding speed of the blade at a
 % each index
 
-blade_velocities = WindToBladeVelocity(wind_velocities,strip_radii(i),turbine_used);
+% PRECIPITATION REACTIVE CONTROL 
 
-impact_velocities = blade_velocities; % This line is included to allow for modification of the impact velocities to include the wind speed
+if enable_PRC
+    
+    % Prep the dataset for PRC - Calculate Mass_W_Diameter, Rainfall and
+    % Median. 
+
+    mass_weighted_diameters = sum(n_droplets_air.*d_calc.^4,2)./sum(n_droplets_air.*d_calc.^3,2); % Gets the mass weighted diameter for each
+    medians = median(n_droplets_air,2); 
+    rainfall_totals = sum(n_droplets_air.*(4/3).*pi.*(d_calc./2).^3,2);
+
+    mwd_criteria = 0.5;
+    median_criteria = 0.75;
+    rainfall_criteria = 1000;
+    switch curtailing_criteria_chosen
+        case 1
+            curtailing_locations = mass_weighted_diameters > mwd_criteria;
+        case 2
+            curtailing_locations = medians>median_criteria;
+        case 3
+            curtailing_locations = rainfall_totals > rainfall_criteria
+        otherwise 
+            error("Selected curtailing criteria does not exist")
+    end
+    
+    [impact_velocities, powers] = WindToBladeVelocity(wind_velocities,strip_radii(i),turbine_used,curtailing_locations,curtailing_wind_speed);
+    time_curtailed = DT*60*sum(curtailing_locations);
+   
+
+
+else
+
+[impact_velocities,powers] = WindToBladeVelocity(wind_velocities,strip_radii(i),turbine_used);
+end
+
+ total_energy_production = sum(2.77778e-10*(powers*DT));
+
+
+
+
+
 
 % Create matrix of number of droplets incident on blade per m^2
-
-
-
-
-
-
-
-
 n_s = n_droplets_air .* impact_velocities.*(DT*60); % Convert back to per m^2 with the blade velocities (Ensuring data is along correct axis)
 
 % Now creates a matrix with both the droplet diameters and blade velocities

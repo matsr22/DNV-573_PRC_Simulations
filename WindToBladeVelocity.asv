@@ -25,17 +25,17 @@ function [wind_speeds,omegas, powers] =  load_curves(path)
     % rotor speeds [rad/s] and power [W] for specific wind speeds [m/s] 
 
     % Load in Blade Speed and Pitch from previously ran control simulation
-    fid = fopen(path, 'r');
-    header = fgetl(fid);  % Skip the header line
-    data = textscan(fid, '%f %f %f %f %f %f');
-    fclose(fid);
+    try 
+    data = readtable(path);
+    catch error_type
 
-    wind_speeds = data{1}';
-    omegas = data{5}';
-    powers = data{2}';
+
+    wind_speeds = data{:,'Wind Speed'};
+    omegas = data{:,'Rotor Speed'};
+    powers = data{:,'Power'};
 
     omegas = omegas*pi/30; % Convert from rpm
-    powers = powers*1e3; % Convert to W
+    powers = powers*0.001; % Convert to W
 
     % Add data before and after so as to ensure cut in and cut out are
     % mesaured correctly

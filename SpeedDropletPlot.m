@@ -9,6 +9,7 @@ function SpeedDropletPlot(y_bins,matrix,myTitle,x_bins,y_label,x_label)
     end
     if nargin<6
         x_label = "V_w [m/s]";
+    end
     figure;
     hold on;
 % Use "imagesc" to plot the matrix, this will create a "grid" view
@@ -24,11 +25,11 @@ function SpeedDropletPlot(y_bins,matrix,myTitle,x_bins,y_label,x_label)
     colormap('jet');
 
     % Include a colorbar
-    colorbar;
+    cb = colorbar;
 
     % Set the grid on and make lines black - doesn't work at the moment
     grid on;
-    set(gca, 'GridColor', 'w','GridLineStyle',':','GridLineWidth',1);
+    set(gca, 'GridColor', 'w','GridLineStyle',':','GridLineWidth',1,'GridAlpha',0.8);
 
     % Label the axes and give a title to the plot
     xlabel(x_label)
@@ -62,6 +63,9 @@ function SpeedDropletPlot(y_bins,matrix,myTitle,x_bins,y_label,x_label)
     set(gcf,'position',[x0,y0,width,height])
 
     set(gca, 'Layer', 'top');
+
+    set(gca,'LineWidth',2);
+    cb.LineWidth = 2;
 
     current_axis = gca;
     current_axis.LabelFontSizeMultiplier = 0.8;

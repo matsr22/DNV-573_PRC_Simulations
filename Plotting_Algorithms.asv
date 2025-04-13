@@ -70,13 +70,7 @@ if plot_fdf
         ylabel("rainfall [mm]");
         hold off;
     elseif fdf_variable_chosen == 4
-        incident_FDF =  zeros(length(w_calc),length(d_calc));
-        for x=1:length(w_calc)
-            wind = w_calc(x);
-            mask = (wind_velocities == wind);
-            incident_FDF(x,:) = log10(sum(n_droplets_air(mask, :), 1));
-        end
-        SpeedDropletPlot(d_bins,incident_FDF,"log_{10} n_R")
+        
     end
 
     

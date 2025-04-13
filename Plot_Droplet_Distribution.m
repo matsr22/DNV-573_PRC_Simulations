@@ -6,7 +6,7 @@ function Plot_Droplet_Distribution(x_data, data_series_1,data_series_2,data_seri
     
     % Axis labels
     xlabel('d [mm]');
-    ylabel('n [1/m^2]');
+    ylabel('Average Droplets per Unit Volume  [1/m^3]');
     
     % Grid and box
     grid on;

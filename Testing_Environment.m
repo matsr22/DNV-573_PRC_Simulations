@@ -38,10 +38,4 @@
 % 
 % %plot(droplet_velocities)
 
-for i = 1:22
-    best_set_rainfall = @(D) (best_distribution(D,1197.8));
-    total_drops_air_3(i) = integral(best_set_rainfall,d_bins(i),d_bins(i+1));
-
-end
-
-total_drops_air_3 = total_drops_air_3/(365*24*60*60)
+GetSpringerStrength("ThreeM");

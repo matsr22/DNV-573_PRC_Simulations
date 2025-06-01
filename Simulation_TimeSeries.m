@@ -6,12 +6,12 @@
 % ---------------------------
 % Analysis - DATASET USED
 % ---------------------------
-location_considered = "Lampedusa"; % Determines which location is being analysed, options: [Lancaster], [Lecce], [Lampedusa]
+location_considered = "Lampedusa"; % Determines which location is being analysed, options: [Lancaster], [Lecce], [Lampedusa], [North_Sea]
 DT = 10; % Temporal Resolution of the Data, expressed in minutes
 % ---------------------------
 % Analysis - TURBINE OPTIONS
 % ---------------------------
-turbine_used = "3MW";% Gives which turbine is considered by the analysis options: [3MW] WINDPACT Turbine, [5MW] NREL Turbine and [15MW] NREL Turbine
+turbine_used = "15MW";% Gives which turbine is considered by the analysis options: [3MW] WINDPACT Turbine, [5MW] NREL Turbine and [15MW] NREL Turbine
 coating_used = 'AAP'; % Alters the coating properties used in the analysis, options: [AAP] (from the RENER2024 paper), [ThreeM] (Case 2 in Sanchez Et al), [ORE] (Case 3 in Sanchez Et al)
 consider_all_strips = false; % Controls if all strips are calculated or just the outermost one
 % ---------------------------
@@ -32,16 +32,28 @@ use_exact_w_s = true; % Controls if the exact wind speed is used or      the win
 % Analysis - PLOTTING OPTIONS
 % ---------------------------
 plot_fdf = true; % Controls if the simulation is plotted or if just damage values are shown
-fdf_plotting_variables = ["Droplet_Diameter","Mass_Weighted_Diameter","Rainfall","Drops_Air"];
-fdf_variable_chosen = 1;
+fdf_plotting_variables = ["Droplet_Diameter","Mass_Weighted_Diameter","Rainfall","Drops_Air","Median_Diameter"];
+fdf_variable_chosen = 1; % Can either be a vector of all graphs to produce or a scalar 
 
 % ---------------------------
 % Analysis - PRECIPITATION REACTIVE CONTROL
 % ---------------------------
-enable_PRC = true;
-curtailing_wind_speed = 8; % Wind speed that curtailing occurs at when PRC criteria is met - must match one of the precalculated curves
-curtailing_criteria = ["Median_Diameter","Mass_Weighted_Diameter","Rainfall"];
+enable_PRC = false;
+curtailing_wind_speed = 7; % Wind speed that curtailing occurs at when PRC criteria is met - must match one of the precalculated curves
+
+curtailing_criteria = ["Mass_Weighted_Diameter","Median_Diameter","Damage"];
 curtailing_criteria_chosen = 1;
+
+% Rain Metric Criteria
+curtailing_lower_criteria = 0.5;
+curtailing_upper_criteria = 1.25;
+
+% Wind Metric Criteria
+wind_speed_lower = 10;
+wind_speed_upper = 25;
+% ---------------------------
+% Analysis - Main Algorithm
+% ---------------------------
 
 strip_radii = load(append("C:\Users\matth\Documents\MATLAB\DNV matlab code\Simulation_Data\Turbine_Curves\Turbine_Data_",turbine_used,".mat"),"radii"); % Strips, indexed 1 to 6 of those considered in the paper
 strip_radii = strip_radii.radii;
@@ -58,7 +70,7 @@ else
     strip_index = 6;
 end
 
-% Modifies the file accessed to be that specific to the extrapolation
+% Modifies the file accessed to be that specific to the hub height extrapolation
 % required of each turbine. 5MW not added as this is not yet relevant to
 % analysis we are doing. 
 if use_extrapolated_wind_data
@@ -68,20 +80,23 @@ if use_extrapolated_wind_data
         suffix = append(suffix,"_150_ext");
     end
 end
+
 %
 % Import Data
 %
 
 imported_structure = struct2cell(load(append("Simulation_Data\",location_considered,"\",string(DT),"min_data_",suffix,".mat"))); 
 
-% Remove Timestamps in the data with NaN values
 
+% Extract table of wind-rain values
 wind_droplet_table = imported_structure{1};
 
-
+% Remove Timestamps in the data with NaN values
 wind_droplet_table = wind_droplet_table(~isnan(wind_droplet_table.("wind_avg")), :);
 
-data_quantity_days = (size(wind_droplet_table,1) * DT)/(60*24);
+
+
+data_quantity_days = (size(wind_droplet_table,1) * DT)/(60*24); % From the number of elements in the table, gives number of days - used for damage calculations
 
 % --------------------------
 % Load in time series rain data:
@@ -102,32 +117,7 @@ d_calc = (d_bins(1:end-1) + d_bins(2:end))./2;
 for i = strip_index
 
 if use_best_distribution
-    rainfalls = wind_droplet_table.rainfall_mm_hr; % Gives the rainfall in mm/hr for each interval
-
-    efficency_threshold = 1e-5; %Sets the threshold at which below this, calculating the integral is ignored to save computation power without affecting the result
-    
-    W = @(R) 67*R.^0.846; % Rainfall is input in mm_hr in this context
-    V = @(D) (1/6)*pi*(D.^3);
-    a = @(R) 1.3*R.^0.232;
-    k_B = 2.25;
-    best_distribution = @(D,R) (W(R)./V(D)) .* ((k_B*D.^(k_B-1))./(a(R).^k_B)).*exp(-(D./a(R)).^k_B);
-    n_droplets_air = zeros(length(rainfalls),length(d_calc));
-    for x = 1:length(rainfalls)
-        best_set_rainfall = @(D) best_distribution(D,rainfalls(x));
-        if rainfalls(x) == 0
-            n_droplets_air(x,:) = 0;
-        else
-            
-            for u = 1:length(d_calc)
-                integral_estimator = best_set_rainfall(d_calc(u))*(d_bins(u+1)- d_bins(u+1));
-                if(integral_estimator < efficency_threshold)
-                    n_droplets_air(x,u) = integral(best_set_rainfall,d_bins(u),d_bins(u+1));
-                else
-                    n_droplets_air(x,u) = 0;
-                end
-            end   
-        end
-    end
+    n_droplets_air = ConstructBestDistributions(wind_droplet_table,d_calc,d_bins); % Constructs from the rainfall at each timestep an equivilent Best DSD - directly obtains drops per cubic meter
 else
 % Gets the collumns of the joint SVD from the table
 svd = wind_droplet_table{:,svd_indexing};
@@ -137,8 +127,8 @@ svdSize = size(svd);
 svd = reshape(svd', 20, 22, svdSize(1));  
 
 if  consider_terminal_velocities & use_measured_terminal_velocites
-    t_v_calculations = (terminal_v_bins(1:end-1) +terminal_v_bins(2:end))./2; % Currently Gets the midpoint of each of the terminal velocities
-    [svd_diameters,svd_vels] = meshgrid(d_calc,t_v_calculations); % Creates grid with 1-1 correspondence with the Size-Velocity Distribution with the droplet size and velocity at each point
+    t_v_calculators = (terminal_v_bins(1:end-1) +terminal_v_bins(2:end))./2; % Currently Gets the midpoint of each of the terminal velocities
+    [svd_diameters,svd_vels] = meshgrid(d_calc,t_v_calculators); % Creates grid with 1-1 correspondence with the Size-Velocity Distribution with the droplet size and velocity at each point
     svd = svd./(svd_vels); % Area converts from Impacts to per m^2, then the terminal velocity of the drops gives per m^3 (Time ommited as it cancels later - see Incident_Droplet_Calculations.pdf for an explanation)
 end
 n_droplets_air = sum(svd,1)./(DT*60); % Sum across all droplet terminal velocities
@@ -166,7 +156,7 @@ if ~ use_exact_w_s
 end
 
 % Convert the wind speeds to the corresponding speed of the blade at a
-% each index
+% each indexuse
 
 % PRECIPITATION REACTIVE CONTROL 
 
@@ -176,34 +166,56 @@ if enable_PRC
     % Median. 
 
     mass_weighted_diameters = sum(n_droplets_air.*d_calc.^4,2)./sum(n_droplets_air.*d_calc.^3,2); % Gets the mass weighted diameter for each
-    medians = median(n_droplets_air,2); 
-    rainfall_totals = sum(n_droplets_air.*(4/3).*pi.*(d_calc./2).^3,2);
 
-    mwd_criteria = 0.75;
-    median_criteria = 0.75;
-    rainfall_criteria = 1000;
+
+    medians = zeros(size(n_droplets_air,1),1);
+    for time_stamp = 1:size(n_droplets_air,1)
+
+
+        frequencies = n_droplets_air(time_stamp,:) / sum(n_droplets_air(time_stamp,:));
+        
+        % Cumulative frequency
+        cum_freq = cumsum(frequencies);
+        
+        % Find index where cumulative freq crosses 0.5
+        median_idx = find(cum_freq >= 0.5, 1, 'first');
+        
+        if isempty(median_idx)
+            medians(time_stamp) = 0;
+        else
+             medians(time_stamp) = d_calc(median_idx(1));
+        end
+    end
+
+
+    
+
+
+    damage_criteria = 0.000062;
+    
     switch curtailing_criteria_chosen
         case 1
-            curtailing_locations = mass_weighted_diameters > mwd_criteria;
+            curtailing_locations = mass_weighted_diameters >= curtailing_lower_criteria & mass_weighted_diameters <= curtailing_upper_criteria & wind_speed_lower < wind_velocities & wind_speed_upper > wind_velocities ;
         case 2
-            curtailing_locations = medians>median_criteria;
+            curtailing_locations = medians >= curtailing_lower_criteria & medians <= curtailing_upper_criteria & wind_speed_lower < wind_velocities & wind_speed_upper > wind_velocities;
         case 3
-            curtailing_locations = rainfall_totals > rainfall_criteria
+            curtailing_locations = time_series_damage_base >= damage_criteria;
         otherwise 
             error("Selected curtailing criteria does not exist")
     end
     
     [impact_velocities, powers] = WindToBladeVelocity(wind_velocities,strip_radii(i),turbine_used,curtailing_locations,curtailing_wind_speed);
-    time_curtailed = DT*60*sum(curtailing_locations);
-   
+    time_curtailed = ((DT/60)/24)*sum(curtailing_locations);
+    total_energy_production_curt = sum(2.77778e-10*(powers*DT*60));
 
 
 else
 
 [impact_velocities,powers] = WindToBladeVelocity(wind_velocities,strip_radii(i),turbine_used);
+%total_energy_production_regular = sum(2.77778e-10*(powers*DT*60));
 end
 
- total_energy_production = sum(2.77778e-10*(powers*DT))
+
 
 
 
@@ -235,15 +247,14 @@ strip_hours(i) = (1/total_damage)*data_quantity_days*24; % This was one of the d
 
 end
 
-Plotting_Algorithms(plot_fdf,use_exact_w_s,wind_velocities,fdf_variable_chosen,damages,d_bins,n_s,n_droplets_air);
-
-total_drops_air_2 = sum((n_droplets_air*DT*60)/(data_quantity_days*60*60*24*365),1);
+for i = 1:length(fdf_variable_chosen)
+    Plotting_Algorithms(plot_fdf,use_exact_w_s,wind_velocities,fdf_variable_chosen(i),damages,d_bins,n_s,n_droplets_air,location_considered,use_best_distribution);
+end
 
 
 disp('Incubation Time Predicted:')
 
 disp(strip_hours(strip_index))
-
 
 
 

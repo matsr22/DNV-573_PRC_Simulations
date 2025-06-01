@@ -5,10 +5,10 @@ function SpeedDropletPlot(y_bins,matrix,myTitle,x_bins,y_label,x_label)
         x_bins = 0:30;
     end
     if nargin<5
-        y_label = "d [mm]";
+        y_label = "D [mm]";
     end
     if nargin<6
-        x_label = "V_w [m/s]";
+        x_label = "V [m/s]";
     end
     figure;
     hold on;
@@ -34,7 +34,7 @@ function SpeedDropletPlot(y_bins,matrix,myTitle,x_bins,y_label,x_label)
     % Label the axes and give a title to the plot
     xlabel(x_label)
     ylabel(y_label)
-    title(myTitle);
+    title(myTitle, 'Interpreter', 'none');
     ticksX{1}=x_bins(1);
     tickyDef = 1:length(y_bins);
     tickxDef = 1:length(x_bins);

@@ -38,11 +38,7 @@ function input_values = GetSpringerStrength(coatingName)
     ModifiedStrength = @(S_c,d) S_c./(1+2*K_Bar(d).*abs(Z_frac(Z_s,Z_c)));
 
     % % Used in absence of the springer strength
-    [m,raw_springer] = CalculateSpringerConstant(HammerStress,RawStrength,coatingName);
-    % 
-    % This line gives the raw strength from the RENER paper
-     m = 4.97;
-     raw_springer = 9.002E9; % Check later - difference
+    [m,raw_springer] = GetSpringerConstantFromFile(coatingName);
     
 
     input_values = struct('raw_springer', raw_springer, 'm', m, ...
@@ -61,12 +57,23 @@ function [m,raw_springer] = CalculateSpringerConstant(HammerStress,RawStrength,c
 [a,m,d_ret,v_ret] = Get_Ret_Data(coatingName);
 
 
-Nfit = 1e6* a *v_ret^(-m); % Coefficent out the front to convert from mm^2 to m^2
+Nfit = a *v_ret^(-m);
 
-springer_inital_modified = HammerStress(d_ret, v_ret) * ((Nfit*d_ret^2)/8.9)^(1/m);
+
+springer_inital_modified = HammerStress(d_ret, v_ret) * (Nfit*(1e3*d_ret^2)/8.9)^(1/m);
+
+springer_inital_modified = 1.7021e9;
 
 
 raw_springer = RawStrength(springer_inital_modified,d_ret);
+end
+
+function [m,raw_springer] = GetSpringerConstantFromFile(coatingName)
+    strength_table = readtable("Simulation_Data\Coating_Strength_Data.xlsx");
+    specific_dataset = strength_table.(coatingName);
+    m = specific_dataset(1);
+    raw_springer = specific_dataset(2);
+    
 end
 
 function [a,m,d_ret,v_ret] = Get_Ret_Data(coatingName)

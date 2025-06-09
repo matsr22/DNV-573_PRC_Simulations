@@ -17,7 +17,7 @@ d_calc = (d_bins(1:end-1) + d_bins(2:end))./2;
 
 % Construct the Best Distribution
 
-n_droplets_air = ConstructBestDistributions(imported_data,d_calc,d_bins);
+n_droplets_air = ConstructBestDistributions(imported_data.rainfall_mm_hr,d_calc,d_bins);
 
 sum_droplets_dsd_best = sum(n_droplets_air,1)';
 

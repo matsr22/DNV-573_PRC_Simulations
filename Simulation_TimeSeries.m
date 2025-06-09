@@ -6,35 +6,38 @@
 % ---------------------------
 % Analysis - DATASET USED
 % ---------------------------
-location_considered = "Lampedusa"; % Determines which location is being analysed, options: [Lancaster], [Lecce], [Lampedusa], [North_Sea]
+location_considered = "North_Sea"; % Determines which location is being analysed, options: [Lancaster], [Lecce], [Lampedusa], [North_Sea]
 DT = 10; % Temporal Resolution of the Data, expressed in minutes
 % ---------------------------
 % Analysis - TURBINE OPTIONS
 % ---------------------------
 turbine_used = "15MW";% Gives which turbine is considered by the analysis options: [3MW] WINDPACT Turbine, [5MW] NREL Turbine and [15MW] NREL Turbine
-coating_used = 'AAP'; % Alters the coating properties used in the analysis, options: [AAP] (from the RENER2024 paper), [ThreeM] (Case 2 in Sanchez Et al), [ORE] (Case 3 in Sanchez Et al)
-consider_all_strips = false; % Controls if all strips are calculated or just the outermost one
+coating_used = 'ThreeM'; % Alters the coating properties used in the analysis, options: [AAP] (from the RENER2024 paper), [ThreeM] (Case 2 in Sanchez Et al), [ORE] (Case 3 in Sanchez Et al)
+consider_all_strips = true; % Controls if all strips are calculated or just the outermost one
 % ---------------------------
 % Analysis - RAINFALL OPTIONS
 % ---------------------------
 use_filtered_data = true;
 consider_terminal_velocities = true; % If false sets all terminal velocities to 1, as is done in the joint FDF
 use_measured_terminal_velocites = false; % If considering terminal velocities, use measured rather than emperical
-use_best_distribution = false;
+use_best_distribution = true;
+ommit_first_droplet_class = false;
 
 % ---------------------------
 % Analysis - WIND OPTIONS
 % ---------------------------
 use_extrapolated_wind_data = true;
-use_exact_w_s = true; % Controls if the exact wind speed is used or      the wind is placed into bins and then the average of that bin is used
+use_exact_w_s = true; % Controls if the exact wind speed is used or  the wind is placed into bins and then the average of that bin is used
 
 % ---------------------------
 % Analysis - PLOTTING OPTIONS
 % ---------------------------
 plot_fdf = true; % Controls if the simulation is plotted or if just damage values are shown
-fdf_plotting_variables = ["Droplet_Diameter","Mass_Weighted_Diameter","Rainfall","Drops_Air","Median_Diameter"];
-fdf_variable_chosen = 1; % Can either be a vector of all graphs to produce or a scalar 
-
+fdf_plotting_variables = ["Droplet_Diameter_Damage","Droplet_Diameter_Incident","Mass_Weighted_Diameter_Damage","Mass_Weighted_Diameter_Incident","Rainfall_Damage","Rainfall_Incident","Median_Diameter_Damage","Median_Diameter_Incident"];
+fdf_variable_chosen = []; % Can either be a vector of all graphs to produce or a scalar 
+normalise_plot = 1; % 1 for true 0 for false - Could do with changing
+folder_save_location = "C:\Users\matth\Documents\MATLAB\DNV matlab code\Plots\15MW Comparisons\First Droplet Class Omitted\Non-PRC\Normalised\V_2\";
+version_number = "V_2";
 % ---------------------------
 % Analysis - PRECIPITATION REACTIVE CONTROL
 % ---------------------------
@@ -58,7 +61,9 @@ wind_speed_upper = 25;
 strip_radii = load(append("C:\Users\matth\Documents\MATLAB\DNV matlab code\Simulation_Data\Turbine_Curves\Turbine_Data_",turbine_used,".mat"),"radii"); % Strips, indexed 1 to 6 of those considered in the paper
 strip_radii = strip_radii.radii;
 
-if use_filtered_data
+if use_best_distribution
+    suffix = 'best';
+elseif use_filtered_data
     suffix = "filt";
 else
     suffix = "unfilt";
@@ -85,11 +90,8 @@ end
 % Import Data
 %
 
-imported_structure = struct2cell(load(append("Simulation_Data\",location_considered,"\",string(DT),"min_data_",suffix,".mat"))); 
+[wind_droplet_table, d_calc,d_bins,terminal_v_bins] = UnpackWindRainData(append("C:\Users\matth\Documents\MATLAB\DNV matlab code\Simulation_Data\",location_considered,"\",string(DT),"min_data_",suffix,".mat"),ommit_first_droplet_class); 
 
-
-% Extract table of wind-rain values
-wind_droplet_table = imported_structure{1};
 
 % Remove Timestamps in the data with NaN values
 wind_droplet_table = wind_droplet_table(~isnan(wind_droplet_table.("wind_avg")), :);
@@ -98,27 +100,19 @@ wind_droplet_table = wind_droplet_table(~isnan(wind_droplet_table.("wind_avg")),
 
 data_quantity_days = (size(wind_droplet_table,1) * DT)/(60*24); % From the number of elements in the table, gives number of days - used for damage calculations
 
-% --------------------------
-% Load in time series rain data:
-% --------------------------
-d_bins = [imported_structure{2} 10]; % The bins are provided by the definition by Elisa, both lower and upper defined
-terminal_v_bins = [0 imported_structure{3} 20]; % The bins are provided for both upper and lower by Elisa 
+
+for i = strip_index
+
+if use_best_distribution
+    col_names = "dsd_" + string(0:21);
+    n_droplets_air = wind_droplet_table{:, col_names};
+else
 
 % Generates a vector of the variables of the joint size velocity
 % distribution indexes
 for x = 1:440
     svd_indexing(x) = append("svd_",string(x-1));
 end
-
-% The diameters and velocities assosiated with each of the bins in svd 
-% Use the midpoint for both
-d_calc = (d_bins(1:end-1) + d_bins(2:end))./2; 
-
-for i = strip_index
-
-if use_best_distribution
-    n_droplets_air = ConstructBestDistributions(wind_droplet_table,d_calc,d_bins); % Constructs from the rainfall at each timestep an equivilent Best DSD - directly obtains drops per cubic meter
-else
 % Gets the collumns of the joint SVD from the table
 svd = wind_droplet_table{:,svd_indexing};
 svdSize = size(svd);
@@ -246,15 +240,103 @@ strip_damage(i) = total_damage;
 strip_hours(i) = (1/total_damage)*data_quantity_days*24; % This was one of the differences between the Rome research team's results and mine, I am using the correct slightly modified number of days in the dataset, they were using number of days in a year
 
 end
-
+%%
 for i = 1:length(fdf_variable_chosen)
-    Plotting_Algorithms(plot_fdf,use_exact_w_s,wind_velocities,fdf_variable_chosen(i),damages,d_bins,n_s,n_droplets_air,location_considered,use_best_distribution);
+    Plotting_Algorithms(plot_fdf,use_exact_w_s,wind_velocities,fdf_variable_chosen(i),damages,d_bins,n_s,n_droplets_air,location_considered,use_best_distribution,normalise_plot,version_number,ommit_first_droplet_class);
 end
+
+if ~isempty(fdf_variable_chosen)
+% Get all figure handles (including hidden ones)
+figHandles = findall(0, 'Type', 'figure');
+
+max_vals_incident = [];
+min_vals_incident = [];
+max_vals_damage = [];
+for k = 1:length(figHandles)
+    fig = figHandles(k);
+    
+    % Find all imagesc objects in the figure
+    imageObjs = findall(fig, 'Type', 'image');
+    
+    axesList = findall(fig, 'Type', 'axes');
+    
+    
+    ax = axesList(1);
+    titleText = get(get(ax, 'Title'), 'String');
+    
+    if isempty(imageObjs)
+        fprintf('  No imagesc plots found.\n');
+    elseif contains(titleText, 'log', 'IgnoreCase', true)
+        for i = 1:length(imageObjs)
+            img = imageObjs(i);
+            cdata = img.CData; % Extract the matrix from imagesc
+            
+            % Get the maximum value of the matrix
+            max_vals_incident(end+1) = max(cdata(:));
+            min_vals_incident(end+1) = min(cdata(:));
+            
+        end
+    else
+        for i = 1:length(imageObjs)
+        img = imageObjs(i);
+        cdata = img.CData; % Extract the matrix from imagesc
+        
+        % Get the maximum value of the matrix
+        max_vals_damage(end+1) = max(cdata(:));
+        end
+    end
+end
+
+newCLim_incident = [-5 ColourLimCeilAdjust(max(max_vals_incident))];
+newClim_damage = [0 ColourLimCeilAdjust(max(max_vals_damage))];
+
+for k = 1:length(figHandles)
+    fig = figHandles(k);
+    
+    % Find all axes in the figure
+    axHandles = findall(fig, 'Type', 'axes');
+
+    
+    
+    for j = 1:length(axHandles)
+        ax = axHandles(j);
+
+        titleText = get(get(ax, 'Title'), 'String');
+        
+        % Check if this axes has an image (imagesc)
+        img = findall(ax, 'Type', 'image');
+        
+        if ~isempty(img)
+            % Set new color limits
+
+            if contains(titleText, 'log', 'IgnoreCase', true)
+                 ax.CLim = newCLim_incident;
+            else
+                ax.CLim = newClim_damage;
+            end
+        end
+    end
+
+    savedName = fig.UserData;
+    savefig(fig, folder_save_location+savedName);
+end
+end
+
+if use_best_distribution
+    title_part = "Best";
+else
+    title_part = "Measured";
+end
+Plot_Damages_D(damages,d_calc,title_part+"_"+location_considered)
 
 
 disp('Incubation Time Predicted:')
 
 disp(strip_hours(strip_index))
+
+excel_string = sprintf('%g\t', string(strip_hours(strip_index)));
+excel_string(end) = [];  % remove trailing tab
+clipboard('copy', excel_string);  % copy to clipboard
 
 
 

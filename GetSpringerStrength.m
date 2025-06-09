@@ -45,6 +45,26 @@ function input_values = GetSpringerStrength(coatingName)
         'ModifiedStrength', ModifiedStrength, 'HammerStress', HammerStress);
 end
 
+
+
+function [m,raw_springer] = GetSpringerConstantFromFile(coatingName)
+    strength_table = readtable("Simulation_Data\Coating_Strength_Data.xlsx");
+    specific_dataset = strength_table.(coatingName);
+    m = specific_dataset(1);
+    raw_springer = specific_dataset(2);
+    
+end
+
+function [a,m,d_ret,v_ret] = Get_Ret_Data(coatingName)
+    ret_table = readtable("Simulation_Data\RET_Data.xlsx");
+    specific_dataset = ret_table.(coatingName);
+    a = specific_dataset(1);
+    m = specific_dataset(2);
+    d_ret = specific_dataset(3);
+    v_ret = specific_dataset(4);
+end
+
+
 function [m,raw_springer] = CalculateSpringerConstant(HammerStress,RawStrength,coatingName)
 % Following lines Calculate the Raw Strength of the Material - if unknown
 
@@ -66,21 +86,4 @@ springer_inital_modified = 1.7021e9;
 
 
 raw_springer = RawStrength(springer_inital_modified,d_ret);
-end
-
-function [m,raw_springer] = GetSpringerConstantFromFile(coatingName)
-    strength_table = readtable("Simulation_Data\Coating_Strength_Data.xlsx");
-    specific_dataset = strength_table.(coatingName);
-    m = specific_dataset(1);
-    raw_springer = specific_dataset(2);
-    
-end
-
-function [a,m,d_ret,v_ret] = Get_Ret_Data(coatingName)
-    ret_table = readtable("Simulation_Data\RET_Data.xlsx");
-    specific_dataset = ret_table.(coatingName);
-    a = specific_dataset(1);
-    m = specific_dataset(2);
-    d_ret = specific_dataset(3);
-    v_ret = specific_dataset(4);
 end

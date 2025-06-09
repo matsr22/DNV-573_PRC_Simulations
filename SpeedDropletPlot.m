@@ -1,16 +1,17 @@
 % This code is used to plot any grid like results 
-function SpeedDropletPlot(y_bins,matrix,myTitle,x_bins,y_label,x_label)
-
-    if nargin < 4
+function SpeedDropletPlot(y_bins,matrix,myTitle,file_save_name,x_bins,y_label,x_label)
+    
+    if nargin < 5
         x_bins = 0:30;
     end
-    if nargin<5
+    if nargin<6
         y_label = "D [mm]";
     end
-    if nargin<6
+    if nargin<7
         x_label = "V [m/s]";
     end
-    figure;
+    fig = figure;
+    fig.UserData = file_save_name;
     hold on;
 % Use "imagesc" to plot the matrix, this will create a "grid" view
     matrix = flip(matrix,2);
@@ -34,7 +35,7 @@ function SpeedDropletPlot(y_bins,matrix,myTitle,x_bins,y_label,x_label)
     % Label the axes and give a title to the plot
     xlabel(x_label)
     ylabel(y_label)
-    title(myTitle, 'Interpreter', 'none');
+    title(myTitle, 'interpreter', 'latex');
     ticksX{1}=x_bins(1);
     tickyDef = 1:length(y_bins);
     tickxDef = 1:length(x_bins);

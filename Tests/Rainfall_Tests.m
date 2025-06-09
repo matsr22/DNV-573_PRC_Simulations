@@ -6,46 +6,16 @@ close all;
 % This test asseses if the total rainfall in the datasets I have are the
 % same as in the RENER paper
 
-
-d_position = 2; % Controls if the lower end of the bin - The droplet diameters provided by the data (1), the midpoint of the bin (2) or the upper end of the bin (3) is used in droplet calculations
+location_considered = "Lancaster";
 
 DT = 10; % Controls what time resolution is used for the simulation
 
-%imported_structure_filt = struct2cell(load(append("..\Simulation_Data\Lancaster\",num2str(DT),"min_data_filt.mat")));% Using the filtered data that Alessio has produced
-%imported_structure_unfilt = struct2cell(load(append("..\Simulation_Data\Lancaster\",num2str(DT),"min_data_unfilt.mat")));% Using the non-filtered data to match the joint FDF
 
-imported_structure_filt = struct2cell(load(append("..\Simulation_Data\Lecce\Lecce_filt_",num2str(DT),"min_data.mat")));% Using the non-filtered data to match the joint FDF
-imported_structure_unfilt = struct2cell(load(append("..\Simulation_Data\Lecce\Lecce_nofilt_",num2str(DT),"min_data.mat")));% Using the non-filtered data to match the joint FDF
+[table] = struct2cell(load(append("..\Simulation_Data\",location_considered,"\",num2str(DT),"min_data_filt.mat")));% Using the non-filtered data to match the joint FDF
 
 
-% Gets the droplet diameters as reported in the files (starting at 0.125)
-d_lowers = imported_structure_filt{2};
-
-% This is the midpoint of the droplet diameter bins
-d_uppers = [d_lowers(2:end) 10]; % Arbitarily choses 9mm as the upper value of the largest droplet bin. This value should not make much difference as not many droplets in this bin
-d_mids = (d_lowers(1:end)+ d_uppers)./2;
-
-
-if d_position == 1
-    d_calc = d_lowers;
-elseif d_position == 2
-    d_calc = d_mids;
-elseif d_position == 3
-    d_calc = d_uppers;
-end
 volumes = (4/3)*pi* (d_calc./2).^3;
 
-
-% Gets the rainfall data directly from the table and sums 
-table_filt = imported_structure_filt{1};
-table_unfilt = imported_structure_unfilt{1};
-
-% Following Lines ONLY FOR LECCE DATA FOR NOW
-year_length_index = (60/DT)*24*365;
-
-table_filt =table_filt(1:year_length_index,:);
-table_unfilt =table_unfilt(1:year_length_index,:);
-%
 
 for x = 1:22
     dsd_indexing(x) = append("dsd_",string(x-1));
@@ -54,23 +24,17 @@ end
 
 
 % Gets the collumns of the dsd from the table
-droplet_dist_filt = table_filt{:,dsd_indexing};
-
-droplet_dist_unfilt = table_unfilt{:,dsd_indexing};
+droplet_dist = table{:,dsd_indexing};
 
 
-
-
-A = 0.00456*1000*1000;
+A = 0.00456*1000*1000; % Area in mm
 format shortG
 
-total_droplets = sum(droplet_dist_unfilt,1)./0.00456
 
 % Convert to rainfall  in mm - multiply number of droplets by the volume of
 % each to get total rain volume in mm^3 then divide by area of disdrometer
 droplet_volumes_filt = volumes.*droplet_dist_filt./A; 
 
-droplet_volumes_unfilt = volumes.*droplet_dist_unfilt./A;
 
 
 % Sum across timesteps and droplet diameters

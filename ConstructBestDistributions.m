@@ -1,9 +1,6 @@
-function [n_droplets_air] = ConstructBestDistributions(input_table,d_calc,d_bins)
+function [n_droplets_air] = ConstructBestDistributions(rainfalls,d_calc,d_bins)
 %UNTITLED Summary of this function goes here
 %   Detailed explanation goes here
-    rainfalls = input_table.rainfall_mm_hr; % Gives the rainfall in mm/hr for each interval
-
-    efficency_threshold = 1e-5; % Sets the threshold at which below this, calculating the integral is ignored to save computation power without affecting the result
     
 
     % These following equations fully describe the best distribution
@@ -26,12 +23,8 @@ function [n_droplets_air] = ConstructBestDistributions(input_table,d_calc,d_bins
             % Integrates for each droplet bin to calculate how many
             % droplets best predicts
             for u = 1:length(d_calc)
-                integral_estimator = best_set_rainfall(d_calc(u))*(d_bins(u+1)- d_bins(u+1)); % Estimates the value of the number of droplets - if sufficently low, ignores to save a little on computing power - no effect on result to 5.s.f
-                if(integral_estimator < efficency_threshold)
                     n_droplets_air(x,u) = integral(best_set_rainfall,d_bins(u),d_bins(u+1));
-                else
-                    n_droplets_air(x,u) = 0;
-                end
+
             end   
         end
     end

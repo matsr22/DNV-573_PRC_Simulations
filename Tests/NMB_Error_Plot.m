@@ -5,12 +5,15 @@ close all;
 addpath("..");
 % Gives total rainfall for each location from measured value
 
-DT = 10; % Controls what time resolution is used for the simulation
+DT = 1; % Controls what time resolution is used for the simulation
 
 location_considered = "Lancaster";
 
 
-structure_filt = struct2cell(load(append("..\Simulation_Data\",location_considered,"\",num2str(DT),"min_data_filt.mat")));% Using the non-filtered data to match the joint FDF
+structure_filt = struct2cell(load(append("..\Simulation_Data\",location_considered,"\",num2str(DT),"min_data_filt.mat")));
+structure_best = struct2cell(load(append("..\Simulation_Data\",location_considered,"\",num2str(DT),"min_data_best.mat")));% Using the non-filtered data to match the joint FDF
+
+
 
 % Gets the droplet diameters as reported in the files (starting at 0.125)
 d_lowers = structure_filt{2};
@@ -21,30 +24,38 @@ d_mids = (d_lowers+ d_uppers)./2;
 
 d_bins = [d_lowers 10];
 
+d_widths = d_bins(2:end)-d_bins(1:end-1);
+
 d_calc = d_mids;
 
+%%
 volumes = (4/3)*pi* (d_calc./2).^3;
 
 
 % Gets the rainfall data directly from the table and sums 
 data_table = structure_filt{1};
+best_table = structure_best{1};
 
 for x = 1:22
     dsd_indexing(x) = append("dsd_",string(x-1));
 end
 
 
+A = 0.00456;
+format shortG
 
 % Gets the collumns of the dsd from the table
 droplets_measured = data_table{:,dsd_indexing};
 
-droplets_per_cubic_best = ConstructBestDistributions(data_table,d_calc,d_bins);
+rainfalls_measured = sum(volumes.*droplets_measured./(A*1e6),2)/(DT/60); 
+
+
+col_names = "dsd_" + string(0:21);
+droplets_per_cubic_best = best_table{:, col_names};
 
 v_parametric = @(d) 9.65 - 10.3.*exp(-0.6.*d); % Provides the terminal velocity from only the measured values of the droplet size. This equation is a simplified one for the one that takes into account air density
 t_v_from_diameters = v_parametric(d_calc);
 
-A = 0.0046;
-format shortG
 
 
 % Convert to rainfall  in mm - multiply number of droplets by the volume of
@@ -54,36 +65,41 @@ droplets_per_cubic_measured = ((droplets_measured./A)./t_v_from_diameters)/(DT*6
 
 %% Rainfall Calculations
 
-
+NMB_type = 1; % Set 1 for an NMB for each droplet class and 2 for an NMB for each sampling point 
 
 
 rainfalls_best = sum(volumes.*((droplets_per_cubic_best./v_parametric(d_calc))),2)/(DT/60);
 
-rainfalls_measured = sum(volumes.*droplets_measured./(A*1e6),2)/(DT/60); 
-
-rainfall_bins =  [0 1 3 5 10 20 50 inf];
-
-rainfalls_table = rainfalls_best;
 
 
-indexes = {1:5,6:11,12:22};
-data_series = zeros(3,7);
-std_series = zeros(3,7);
+rainfall_bins =  [0 1 3 5 10 20 inf];
 
-for x = 1:3
+rainfalls_table = rainfalls_measured;
+
+
+indexes = {2:5,6:11,12:22};
+
+num_data_series = length(indexes);
+data_series = zeros(num_data_series,length(rainfall_bins)-1);
+std_series = zeros(num_data_series,length(rainfall_bins)-1);
+
+for x = 1:num_data_series
     idx = indexes{x};
     for i = 1:(length(rainfall_bins)-1)
         data_best = droplets_per_cubic_best(:,idx);
-        data_best = data_best(rainfalls_table>=rainfall_bins(i) & rainfalls_table<rainfall_bins(i+1),:);
 
+        data_best = data_best(rainfalls_table>=rainfall_bins(i) & rainfalls_table<rainfall_bins(i+1),:);
+        
+        data_best = data_best./d_widths(idx);
         data_measured = droplets_per_cubic_measured(:,idx);
         data_measured = data_measured(rainfalls_table>=rainfall_bins(i) & rainfalls_table<rainfall_bins(i+1),:);
         
-        NMBs = sum(data_best - data_measured,1) ./ sum(data_measured,1);
+        data_measured = data_measured./d_widths(idx);
+        NMBs = sum(data_best-data_measured,NMB_type) ./ sum(data_measured,NMB_type);
 
         NMBs = NMBs(~isnan(NMBs) & ~isinf(NMBs));
 
-        data_series(x,i) = mean(NMBs,"all");
+        data_series(x,i) = mean(NMBs);
 
 
         std_series(x,i) = std(NMBs);
@@ -96,11 +112,12 @@ end
 
 
 x_labels = {'0-1 mm h^{-1}', '1-3 mm h^{-1}', '3-5 mm h^{-1}', ...
-            '5-10 mm h^{-1}', '10-20 mm h^{-1}', '20-50 mm h^{-1}', '>50 mm h^{-1}'};
+            '5-10 mm h^{-1}', '10-20 mm h^{-1}', '>20 mm h^{-1}'};
 x = 1:length(x_labels);
 
-figure;
+figure('Position',[403 121 820 505]);
 hold on;
+
 
 errorbar(x, data_series(1,:), std_series(1,:), 'g', 'LineWidth', 1.5, 'DisplayName', 'small D');
 errorbar(x, data_series(2,:), std_series(2,:), 'k', 'LineWidth', 1.5, 'DisplayName', 'medium D');
@@ -112,10 +129,31 @@ xticks(x);
 xticklabels(x_labels);
 xtickangle(45);
 ylabel('NMB');
+xlabel('Rainfall')
 legend('Location', 'northeast');
-ylim([-10 15]);
+ylim([-2 2]);
+
+xlim('padded');
+
+lowest_drop_class = indexes{1};
+if lowest_drop_class(1) == 1
+    omission= " No Omission";
+else
+    omission = " First DSD Ommited";
+end
+
+if NMB_type == 1
+    graph_name = location_considered + " - NMB per droplet class -"+ omission;
+else
+    graph_name = location_considered + " - NMB per sampling poin -"+ omission;
+end
 box on;
 grid on;
+savefig(graph_name)
+
+close gcf;
+
+
 
 
 

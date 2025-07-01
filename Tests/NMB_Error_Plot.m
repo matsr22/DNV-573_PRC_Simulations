@@ -7,7 +7,7 @@ addpath("..");
 
 DT = 1; % Controls what time resolution is used for the simulation
 
-location_considered = "Lancaster";
+location_considered = "Lampedusa";
 
 
 structure_filt = struct2cell(load(append("..\Simulation_Data\",location_considered,"\",num2str(DT),"min_data_filt.mat")));
@@ -53,8 +53,8 @@ rainfalls_measured = sum(volumes.*droplets_measured./(A*1e6),2)/(DT/60);
 col_names = "dsd_" + string(0:21);
 droplets_per_cubic_best = best_table{:, col_names};
 
-v_parametric = @(d) 9.65 - 10.3.*exp(-0.6.*d); % Provides the terminal velocity from only the measured values of the droplet size. This equation is a simplified one for the one that takes into account air density
-t_v_from_diameters = v_parametric(d_calc);
+ % Provides the terminal velocity from only the measured values of the droplet size. This equation is a simplified one for the one that takes into account air density
+t_v_from_diameters = Terminal_V_From_D(d_calc);
 
 
 
@@ -68,11 +68,11 @@ droplets_per_cubic_measured = ((droplets_measured./A)./t_v_from_diameters)/(DT*6
 NMB_type = 1; % Set 1 for an NMB for each droplet class and 2 for an NMB for each sampling point 
 
 
-rainfalls_best = sum(volumes.*((droplets_per_cubic_best./v_parametric(d_calc))),2)/(DT/60);
+rainfalls_best = sum(volumes.*((droplets_per_cubic_best./Terminal_V_From_D(d_calc))),2)/(DT/60);
 
 
 
-rainfall_bins =  [0 1 3 5 10 20 inf];
+rainfall_bins =  [0.1 1 3 5 10 20 inf];
 
 rainfalls_table = rainfalls_measured;
 
@@ -111,7 +111,7 @@ end
 
 
 
-x_labels = {'0-1 mm h^{-1}', '1-3 mm h^{-1}', '3-5 mm h^{-1}', ...
+x_labels = {'0.1-1 mm h^{-1}', '1-3 mm h^{-1}', '3-5 mm h^{-1}', ...
             '5-10 mm h^{-1}', '10-20 mm h^{-1}', '>20 mm h^{-1}'};
 x = 1:length(x_labels);
 
@@ -149,7 +149,7 @@ else
 end
 box on;
 grid on;
-savefig(graph_name)
+Save_Fig_Validated(graph_name)
 
 close gcf;
 

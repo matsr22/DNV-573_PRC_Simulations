@@ -17,7 +17,7 @@ d_calc = (d_bins(1:end-1) + d_bins(2:end))./2;
 
 % Construct the Best Distribution
 
-n_droplets_air = ConstructBestDistributions(imported_data.rainfall_mm_hr,d_calc,d_bins);
+n_droplets_air = Construct_Best_Distributions(imported_data.rainfall_mm_hr,d_calc,d_bins);
 
 sum_droplets_dsd_best = sum(n_droplets_air,1)';
 
@@ -38,8 +38,8 @@ sum_droplets_dsd_measured = sum(svd,[1,3]);
 
 A = 0.00456; % area in m^2 of sensor
 sum_droplets_dsd_measured = sum_droplets_dsd_measured./A;
-v_parametric = @(d) 9.65 - 10.3.*exp(-0.6.*d); % Provides the terminal velocity from only the measured values of the droplet size. This equation is a simplified one for the one that takes into account air density
-t_v_from_diameters = v_parametric(d_calc);
+ % Provides the terminal velocity from only the measured values of the droplet size. This equation is a simplified one for the one that takes into account air density
+t_v_from_diameters = Terminal_V_From_D(d_calc);
 sum_droplets_dsd_measured = sum_droplets_dsd_measured./t_v_from_diameters;
 
 sum_droplets_dsd_measured = (sum_droplets_dsd_measured ./ (DT*60))';

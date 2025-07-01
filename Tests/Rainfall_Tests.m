@@ -1,17 +1,19 @@
-clear;
-clc;
-close all;
+
 
 
 % This test asseses if the total rainfall in the datasets I have are the
 % same as in the RENER paper
 
-location_considered = "Lancaster";
+location_considered = "Lampedusa";
+
+best_filt = "filt"; % Choose either [best] data or measured [filt] data
+
+exclude_first_droplet_bin = true;
 
 DT = 10; % Controls what time resolution is used for the simulation
 
 
-[table] = struct2cell(load(append("..\Simulation_Data\",location_considered,"\",num2str(DT),"min_data_filt.mat")));% Using the non-filtered data to match the joint FDF
+[table,d_calc,d_bins] = Unpack_Wind_Rain_Data(append("..\Simulation_Data\",location_considered,"\",num2str(DT),"min_data_",best_filt,"_150_ext.mat"),exclude_first_droplet_bin);% Using the non-filtered data to match the joint FDF
 
 
 volumes = (4/3)*pi* (d_calc./2).^3;
@@ -27,19 +29,30 @@ end
 droplet_dist = table{:,dsd_indexing};
 
 
-A = 0.00456*1000*1000; % Area in mm
+Am = 0.00456; % Area in m^2
+Amm = Am*1000*1000; % Area in mm^2
+
+ % Terminal velocity in mm per hour
+t_v_from_diameters = Terminal_V_From_D(d_calc);
+
 format shortG
-
-
 % Convert to rainfall  in mm - multiply number of droplets by the volume of
 % each to get total rain volume in mm^3 then divide by area of disdrometer
-droplet_volumes_filt = volumes.*droplet_dist_filt./A; 
+
+% Best is recorded in per m^3, Measured is pure numbers
+if best_filt == "filt"
+    rainfalls = sum((droplet_dist.*volumes)./Amm,2); % Total rain at each time step
+else
+    rainfalls= table.rainfall_rate*(DT/60);
+    %rainfalls = sum(((droplet_dist.*Am.*t_v_from_diameters*(DT*60)).*volumes)./Amm,2);
+end
+    
 
 
 
 % Sum across timesteps and droplet diameters
-rainfall_filt = sum(droplet_volumes_filt,"all")
-rainfall_unfilt = sum(droplet_volumes_unfilt,"all")
+rainfall = sum(rainfalls,"all")
+
 
 
 

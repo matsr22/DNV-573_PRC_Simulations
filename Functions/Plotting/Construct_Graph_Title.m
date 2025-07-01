@@ -1,0 +1,25 @@
+function [output_title] = Construct_Graph_Title(normalise,fdf_variable_chosen)
+% Constructs the graph title used in the plotting algorithms
+
+    % Normalised all have in their title a division by total
+    % damage/rainfall
+    if normalise
+        % Normalised (Divided by total sum value)
+        if mod(fdf_variable_chosen,2) == 0 
+            % Incident Droplets
+            output_title = '$\log_{10}(n_v/n_{v,T})$';
+        else
+            % Damage
+            output_title = '$D_s/D_{s,T}$';
+        end
+    else
+        % Unnormalised 
+        if mod(fdf_variable_chosen,2) == 0     
+            % Incident Droplets
+            output_title = '$\log_{10}(n_v)$';
+        else
+            % Damage
+            output_title = '$D_s$';
+        end
+    end
+end

@@ -35,9 +35,9 @@ v_calc = WindToBladeVelocity(w_calc,strip_radii(i));% Converts the wind speed to
 
 
 
-computed_vals = GetSpringerStrength(); % Sets up the modified springer constants
+computed_vals = Get_Springer_Strength(); % Sets up the modified springer constants
 
-allowed_impingements = CalculateAllowedImpingements(computed_vals,v_grid,d_grid);
+allowed_impingements = Calculate_Allowed_Impingements(computed_vals,v_grid,d_grid);
 
 % Number of impacts on blade:
 

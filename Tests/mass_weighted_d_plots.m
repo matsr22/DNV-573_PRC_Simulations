@@ -16,14 +16,14 @@ end
 
 
 % Load in the tables
-[data_table1,d_calc,d_bins] =UnpackWindRainData("C:\Users\matth\Documents\MATLAB\DNV matlab code\Simulation_Data\Lampedusa\Combined 23-24\1min_data_filt.mat");% Using the non-filtered data to match the joint FDF
-[data_table2,d_calc,d_bins] =UnpackWindRainData(append("..\Simulation_Data\",location_considered_2,"\",num2str(DT),"min_data_filt.mat"));% Using the non-filtered data to match the joint FDF
+[data_table1,d_calc,d_bins] =Unpack_Wind_Rain_Data("C:\Users\matth\Documents\MATLAB\DNV matlab code\Simulation_Data\Lampedusa\Combined 23-24\1min_data_filt.mat");% Using the non-filtered data to match the joint FDF
+[data_table2,d_calc,d_bins] =Unpack_Wind_Rain_Data(append("..\Simulation_Data\",location_considered_2,"\",num2str(DT),"min_data_filt.mat"));% Using the non-filtered data to match the joint FDF
 
 
 % Define the volume of a drop for calculation of the rainfall rate 
 volumes = (4/3)*pi* (d_calc./2).^3;
 
-
+d_widths = d_bins(2:end)-d_bins(1:end-1);
 
 
 for x = 1:22
@@ -42,13 +42,13 @@ A = 0.00456;
 % mm
 rainfalls1 = sum(volumes.*droplets_measured1./(A*1e6),2)/(DT/60); 
 
-mass_weighted_diameters1 = sum(droplets_measured1.*d_calc.^4,2)./sum(droplets_measured1.*d_calc.^3,2); % Gets the mass weighted diameter for each
+mass_weighted_diameters1 = sum((droplets_measured1./d_widths).*d_calc.^4,2)./sum((droplets_measured1./d_widths).*d_calc.^3,2); % Gets the mass weighted diameter for each
 
 droplets_measured2 = data_table2{:,dsd_indexing};
 
 rainfalls2 = sum(volumes.*droplets_measured2./(A*1e6),2)/(DT/60); 
 
-mass_weighted_diameters2 = sum(droplets_measured2.*d_calc.^4,2)./sum(droplets_measured2.*d_calc.^3,2); % Gets the mass weighted diameter for each
+mass_weighted_diameters2 = sum((droplets_measured2./d_widths).*d_calc.^4,2)./sum((droplets_measured2./d_widths).*d_calc.^3,2); % Gets the mass weighted diameter for each
 
 % 0/0 creates some NAN values - remove these 
 indexes1 = ~(rainfalls1==0) & ~isnan(rainfalls1)&~isnan(mass_weighted_diameters1);
@@ -65,7 +65,7 @@ mass_weighted_diameters2 = mass_weighted_diameters2(indexes2);
 x_range = logspace(-1,2,150);
 
 % Construct a Best distribution for every point across the considered range
-best_distribution = ConstructBestDistributions(x_range,d_calc,d_bins);
+best_distribution = Construct_Best_Distributions(x_range,d_calc,d_bins);
 
 
 %Calculate Mass Weighted Diameters for each rainfall

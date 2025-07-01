@@ -5,11 +5,11 @@
 clc;
 clear all;
 
-DT = 10;
+DT = 1;
 
 root_path = "C:\Users\matth\Documents\MATLAB\DNV matlab code\Simulation_Data\";
-original_data_source = "North_Sea\10min_data_best.mat";
-final_data_save_name = "North_Sea\10min_data_best.mat";
+original_data_source = "Lancaster\1min_data_filt.mat";
+final_data_save_name = "Lancaster\1min_data_best.mat";
 
 original_data = load(root_path+original_data_source);
 
@@ -34,9 +34,10 @@ format shortG
 droplets_measured = modified_table{:,dsd_indexing};
 
 
-rainfalls = modified_table.rainfall_rate;
+rainfalls = sum(((droplets_measured.*volumes)./(A*1e6))./(DT/60),2);
 rainfalls(isnan(rainfalls)) = 0;
-n_droplets_air = ConstructBestDistributions(rainfalls,d_calc,d_bins); % Constructs from the rainfall at each timestep an equivilent Best DSD - directly obtains drops per cubic meter
+
+n_droplets_air = Construct_Best_Distributions(rainfalls,d_calc,d_bins); % Constructs from the rainfall at each timestep an equivilent Best DSD - directly obtains drops per cubic meter
 % 
 % colsToRemove = "svd_" + string(0:439);  % vector of names
 % modified_table = removevars(modified_table, colsToRemove);

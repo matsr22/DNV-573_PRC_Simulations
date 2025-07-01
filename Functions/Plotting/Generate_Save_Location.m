@@ -1,39 +1,44 @@
-function [global_run_number,folder_save_location] = Generate_Save_Location(query_doing_PRC_analysis,normalise_plot,ommit_first_droplet_class,use_best_distribution_PRC,version_number,location_considered,enable_PRC,fdf_variable_chosen)
-if query_doing_PRC_analysis == "PRC"
-    if normalise_plot
-    normalise_string = "Normalised";
-    else
-        normalise_string = "Unnormalised";
-    end
-    if ommit_first_droplet_class
-        droplet_class_save_string = "First Droplet Class Omitted";
-    else
-        droplet_class_save_string = "No droplet Omission";
-    end
-    if use_best_distribution_PRC
-        best_save_string = "Best";
-    else
-        best_save_string = "Measured";
-    end
-    
-    base_path = append("C:\Users\matth\Documents\MATLAB\DNV matlab code\Plots\15MW Comparisons\",droplet_class_save_string,"\",query_doing_PRC_analysis,"\",version_number,"\",location_considered,"\");
+function [global_run_number,folder_save_location] = Generate_Save_Location(config)
 
-    if ~enable_PRC % Ensure that preliminary assesment can be made before 
+if config.normalise_plot
+    normalise_str = "Normalised";
+else
+    normalise_str = "Unnormalised";
+end
+if config.ommit_first_droplet_class
+    droplet_omit_str = "First Droplet Class Omitted";
+else
+    droplet_omit_str = "No droplet Omission";
+end
+if config.use_best_distribution_PRC
+    rainfall_type_str = "Best";
+else
+    rainfall_type_str = "Measured";
+end
+if all(mod(config.fdf_variable_chosen, 2) == 0) 
+    plot_type_str = "Incident";
+elseif all(mod(config.fdf_variable_chosen, 2) == 1)     
+    plot_type_str = "Damage";
+else
+    error("Both Damage and Incident Present - Saving Not allowed")
+end
+
+if config.query_doing_PRC_analysis == "PRC"
+
+    
+    base_path = append("C:\Users\matth\Documents\MATLAB\DNV matlab code\Plots\15MW Comparisons\",droplet_omit_str,"\",config.query_doing_PRC_analysis,"\",config.version_number,"\",config.location_considered,"\");
+
+    if ~config.enable_PRC % Ensure that preliminary assesment can be made before 
         query_iterate_run_number = true;
     else
         query_iterate_run_number = false;
     end
     global_run_number = Get_Next_Run_Number(base_path+"\counter.txt",query_iterate_run_number);
 
-    folder_save_location = append(base_path,"\",best_save_string,"\Run_Number_",string(global_run_number),"\");
+    folder_save_location = append(base_path,"\",rainfall_type_str,"\Run_Number_",string(global_run_number),"\");
 else
-    if all(mod(fdf_variable_chosen, 2) == 0) 
-        damage_or_normalised = "Incident Drops";
-    elseif all(mod(fdf_variable_chosen, 2) == 1)     
-        damage_or_normalised = "Damage";
-    else
-    error("Both Damage and Incident Present - Saving Not allowed")
-    end
-    folder_save_location = append("C:\Users\matth\Documents\MATLAB\DNV matlab code\Plots\15MW Comparisons\",droplet_class_save_string,"\",query_doing_PRC_analysis,"\",normalise_string,"\",version_number,"\",location_considered,"\",damage_or_normalised,"\");
+
+    folder_save_location = append("C:\Users\matth\Documents\MATLAB\DNV matlab code\Plots\15MW Comparisons\",droplet_omit_str,"\",config.query_doing_PRC_analysis,"\",normalise_str,"\",config.version_number,"\",config.location_considered,"\",plot_type_str,"\");
+    global_run_number = [];
 end
 end

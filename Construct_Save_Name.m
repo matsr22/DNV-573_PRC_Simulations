@@ -7,9 +7,9 @@ function output_save_name = Construct_Save_Name(normalise,use_best_dist,enable_P
     end
 
     if normalise
-        normalise_string = "Normalised";
+        normalise_str = "Normalised";
     else
-        normalise_string = "Unnormalised";
+        normalise_str = "Unnormalised";
     end
 
     if use_best_dist
@@ -30,7 +30,7 @@ function output_save_name = Construct_Save_Name(normalise,use_best_dist,enable_P
         PRC_enabled_string = "";
     end
 
-    output_save_name = strjoin([damage_or_incident,location_considered,normalise_string,rainfall_source,input_string,version,PRC_enabled_string],"_");
+    output_save_name = strjoin([damage_or_incident,location_considered,normalise_str,rainfall_source,input_string,version,PRC_enabled_string],"_");
 end
 
 

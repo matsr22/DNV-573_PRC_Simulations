@@ -71,12 +71,12 @@ config.lifetime_extention_multiplier = 12; % For idealised case
 config.plot_fdf = true; % Controls if the simulation is plotted or if just damage values are shown
 
 
-config.query_doing_PRC_analysis = "Non-PRC"; % Set either PRC or Non-PRC - changes file save location
+config.query_doing_PRC_analysis = "PRC"; % Set either PRC or Non-PRC - changes file save location
 config.version_number = "REFACTOR_TESTING";
 
 
 if config.plot_fdf
-    [global_run_number,folder_save_location] = Generate_Save_Location(config.query_doing_PRC_analysis,config.normalise_plot,config.ommit_first_droplet_class,config.use_best_distribution_PRC,config.version_number,config.location_considered,config.enable_PRC,config.fdf_variable_chosen);
+    [global_run_number,folder_save_location] = Generate_Save_Location(config);
 end
 % ---------------------------
 % Analysis - Main Algorithm
@@ -125,7 +125,6 @@ wind_droplet_table.wind_avg(isnan(wind_droplet_table.wind_avg)) = 0;
 data_quantity_days = (size(wind_droplet_table,1) * config.DT)/(60*24); % From the number of elements in the table, gives number of days - used for damage calculations
 
 
-for i = strip_index
 
 if config.use_best_distribution_simulation
     col_names = "dsd_" + string(0:21);
@@ -172,6 +171,9 @@ if ~ config.use_exact_w_s
      [~, indices] = min(abs(wind_velocities(:) - w_calc), [], 2); % Gets for each exact wind velocity, the index of the wind velocity that is the bin this velocity falls under
      wind_velocities = w_calc(indices)';
 end
+
+for i = strip_index
+
 
 % Convert the wind speeds to the corresponding speed of the blade at a
 % each indexuse
@@ -261,12 +263,6 @@ else
 end
 
 
-
-
-
-
-
-
 % Create matrix of number of droplets incident on blade per m^2
 n_s = n_droplets_air .* impact_velocities.*(config.DT*60); % Convert back to per m^2 with the blade velocities (Ensuring data is along correct axis)
 
@@ -297,10 +293,10 @@ end
 %%
 
 for i = 1:length(config.fdf_variable_chosen)
-    Plotting_Algorithms(config.plot_fdf,config.use_exact_w_s,wind_velocities,config.fdf_variable_chosen(i),damages,d_bins,n_s,n_droplets_air,config.location_considered,config.use_best_distribution_simulation,config.normalise_plot,config.version_number,config.ommit_first_droplet_class,config.enable_PRC,global_damage);
+    Plotting_Algorithms(config,wind_velocities,config.fdf_variable_chosen(i),damages,d_bins,n_s,n_droplets_air,global_damage);
 end
 
-if ~isempty(config.fdf_variable_chosen)
+if ~isempty(config.fdf_variable_chosen) && config.plot_fdf
     Adjust_All_Colour_Bars(folder_save_location);
 end
 
@@ -322,43 +318,7 @@ str(end) = [];  % remove trailing tab
 clipboard('copy', str);  % copy to clipboard
 
 if config.enable_PRC
-
-Curtailing_Metric = ["Curtailing Method",...
-    "Dataset Type",...
-    "Uncurtailed Lifetime [h]","Curtailed Lifetime [h]","Curtailed Lifetime [y]", "Percentage Lifetime Increase",...
-    "Uncurtailed AEP [MWh]","Curtailed AEP [MWh]","Percentage Decrease AEP",...
-    "Total Time of Period [h]","Time Curtailed [d]","Percentage Curtailed",...
-    "Time Turbine Active [h]","Percentage Active Time Curtailed",...
-    "Lower Droplet Criteria [mm]","Upper Droplet Criteria [mm]","Lower Windspeed Criteria [mm]", "Upper Windspeed Criteria [m/s]","Lower Rainfall Limit [mm/h]","Upper Rainfall Limit [mm/h]","Curtailing Wind Speed" ];
-
-lifetime_extention_result = uncurt_damage/total_damage;
-uncurt_life_h = (data_quantity_days*24*(1/uncurt_damage));
-curt_life_h = strip_hours(end);
-time_turbine_operational = data_quantity_days * length(wind_velocities(wind_velocities>=3 & wind_velocities<=25))/length(wind_velocities);
-
-if config.use_best_distribution_PRC
-    best_PRC_string = "Best";
-else
-    best_PRC_string = "Measured";
-end
-
-Data_Metric = [config.curtailing_criteria(config.curtailing_criteria_chosen),...
-    best_PRC_string,...
-    uncurt_life_h, curt_life_h,curt_life_h/(365.24*24), 100*(curt_life_h-uncurt_life_h)/uncurt_life_h,...
-    AEP_uncurt,AEP_curt, 100*(AEP_uncurt-AEP_curt)/AEP_uncurt,...
-    data_quantity_days*24,time_curtailed*24,100*(time_curtailed/data_quantity_days),...
-    time_turbine_operational*24,100*(time_curtailed/time_turbine_operational),...
-    config.curtailing_lower_criteria,config.curtailing_upper_criteria, config.curtailing_wind_speed_lower,config.curtailing_wind_speed_upper,config.curtailing_rainfall_lower,config.curtailing_rainfall_upper,config.curtailing_wind_speed];
-
-Curtailing_Metric = Curtailing_Metric(:); % Convert to column vectors
-Data_Metric = Data_Metric(:);
-
-path = fileparts(fileparts(fileparts(folder_save_location)))+"\"+config.location_considered+"_PRC_Results"+".xlsx";
-
-Write_Excel_Table(Curtailing_Metric,Data_Metric,path,global_run_number);
-
-close all
-
+    Save_Close_PRC_data(uncurt_damage,total_damage,data_quantity_days,strip_hours,wind_velocities,config,AEP_uncurt,AEP_curt,time_curtailed,folder_save_location,global_run_number);
 end
 
 

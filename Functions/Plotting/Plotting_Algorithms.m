@@ -65,14 +65,14 @@ if config.plot_fdf
             frequency_m_w_d = frequency_m_w_d ./ sum(frequency_m_w_d, "all");
         end
         if fdf_variable_chosen == 3
-            SpeedDropletPlot(mass_weighted_d_bins, damages_m_w_d, graph_title, graph_save_name, 0:30, "D_{mass}")
+            SpeedDropletPlot(mass_weighted_d_bins, damages_m_w_d, graph_title, graph_save_name, 0:30, "D_{m} [mm]")
         end
         
         non_zero_drops = frequency_m_w_d(frequency_m_w_d ~= 0);
         lowest_val = min(non_zero_drops);
         frequency_m_w_d(frequency_m_w_d == 0) = lowest_val;
         if fdf_variable_chosen == 4
-            SpeedDropletPlot(mass_weighted_d_bins, log10(frequency_m_w_d), graph_title, graph_save_name, 0:30, "D_{mass}")
+            SpeedDropletPlot(mass_weighted_d_bins, log10(frequency_m_w_d), graph_title, graph_save_name, 0:30, "D_{m} [mm]")
         end
 
     elseif fdf_variable_chosen == 5 || fdf_variable_chosen == 6
@@ -128,29 +128,17 @@ if config.plot_fdf
         SpeedDropletPlot(d_bins, incident_FDF, graph_title, graph_save_name)
 
     elseif fdf_variable_chosen == 7 || fdf_variable_chosen == 8
-        median_d_bins = d_bins;
-        median_d_mid = (median_d_bins(1:end-1) + median_d_bins(2:end)) ./ 2;
-        medians = zeros(size(n_droplets_air,1),1);
-        for i = 1:size(n_droplets_air,1)
-            frequencies = n_droplets_air(i,:) / sum(n_droplets_air(i,:));
-            cum_freq = cumsum(frequencies);
-            median_idx = find(cum_freq >= 0.5, 1, 'first');
-            if isempty(median_idx)
-                medians(i) = 0;
-            else
-                medians(i) = d_calc(median_idx(1));
-            end
-        end
-        median_q = Bin_Continuous_Parameter(medians, median_d_mid);
+        [median_d_bins,median_d_mid,medians] = Calculate_Mmass(d_bins,n_droplets_air,d_calc);
 
+        
         damages_median = zeros(length(w_calc), length(median_d_mid));
         frequency_median = zeros(length(w_calc), length(median_d_mid));
         for w=1:length(w_calc)
             for d=1:length(median_d_mid)
                 wind = w_calc(w);
                 median_calc = median_d_mid(d);
-                damages_median(w,d) = sum(damages(wind == wind_velocities & median_calc == median_q, :), "all");
-                frequency_median(w,d) = sum(n_droplets_air(wind == wind_velocities & median_calc == median_q, :), "all");
+                damages_median(w,d) = sum(damages(wind == wind_velocities & median_calc == medians, :), "all");
+                frequency_median(w,d) = sum(n_droplets_air(wind == wind_velocities & median_calc == medians, :), "all");
             end
         end
         if config.normalise_plot
@@ -158,12 +146,12 @@ if config.plot_fdf
             frequency_median = frequency_median ./ sum(frequency_median, "all");
         end
         if fdf_variable_chosen == 7
-            SpeedDropletPlot(median_d_bins, damages_median, graph_title, graph_save_name, 0:30, "Median Diameter[mm]")
+            SpeedDropletPlot(median_d_bins, damages_median, graph_title, graph_save_name, 0:30, "D_{0} [mm]")
         end
         lowest_val = 10^-7;
         frequency_median(frequency_median == 0) = lowest_val;
         if fdf_variable_chosen == 8
-            SpeedDropletPlot(median_d_bins, log10(frequency_median), graph_title, graph_save_name, 0:30, "Median Diameter[mm]")
+            SpeedDropletPlot(median_d_bins, log10(frequency_median), graph_title, graph_save_name, 0:30, "D_{0} [mm]")
         end
     end
 end

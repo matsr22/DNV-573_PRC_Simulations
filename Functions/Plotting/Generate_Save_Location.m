@@ -1,15 +1,6 @@
 function [global_run_number,folder_save_location] = Generate_Save_Location(config)
 
-if config.normalise_plot
-    normalise_str = "Normalised";
-else
-    normalise_str = "Unnormalised";
-end
-if config.ommit_first_droplet_class
-    droplet_omit_str = "First Droplet Class Omitted";
-else
-    droplet_omit_str = "No droplet Omission";
-end
+
 if config.use_best_distribution_PRC
     rainfall_type_str = "Best";
 else
@@ -26,7 +17,7 @@ end
 if config.query_doing_PRC_analysis == "PRC"
 
     
-    base_path = append("C:\Users\matth\Documents\MATLAB\DNV matlab code\Plots\15MW Comparisons\",droplet_omit_str,"\",config.query_doing_PRC_analysis,"\",config.version_number,"\",config.location_considered,"\");
+    base_path = append("C:\Users\matth\Documents\MATLAB\DNV matlab code\Plots\Final Results\",config.query_doing_PRC_analysis,"\",config.version_number,"\",config.location_considered,"\");
 
     if ~config.enable_PRC % Ensure that preliminary assesment can be made before 
         query_iterate_run_number = true;
@@ -38,7 +29,7 @@ if config.query_doing_PRC_analysis == "PRC"
     folder_save_location = append(base_path,"\",rainfall_type_str,"\Run_Number_",string(global_run_number),"\");
 else
 
-    folder_save_location = append("C:\Users\matth\Documents\MATLAB\DNV matlab code\Plots\15MW Comparisons\",droplet_omit_str,"\",config.query_doing_PRC_analysis,"\",normalise_str,"\",config.version_number,"\",config.location_considered,"\",plot_type_str,"\");
+    folder_save_location = append("C:\Users\matth\Documents\MATLAB\DNV matlab code\Plots\Final Results\",config.query_doing_PRC_analysis,"\",config.version_number,"\",config.location_considered,"\",plot_type_str,"\");
     global_run_number = [];
 end
 end

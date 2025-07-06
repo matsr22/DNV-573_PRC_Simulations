@@ -1,11 +1,5 @@
 function output_save_name = Construct_Save_Name(normalise,use_best_dist,enable_PRC,fdf_variable_chosen,location_considered,version)
 
-    if mod(fdf_variable_chosen,2) == 0 
-        damage_or_incident = "Damage";
-    else
-        damage_or_incident = "Incident";
-    end
-
     if normalise
         normalise_str = "Normalised";
     else
@@ -18,7 +12,7 @@ function output_save_name = Construct_Save_Name(normalise,use_best_dist,enable_P
         rainfall_source = "Measured";
     end
 
-    input_types = ["DSD","Dmass","Rainfall","Median"];
+    input_types = ["DSD","Dm","Rainfall","D0"];
 
     input_string = input_types(ceil(fdf_variable_chosen/2));
     
@@ -30,7 +24,11 @@ function output_save_name = Construct_Save_Name(normalise,use_best_dist,enable_P
         PRC_enabled_string = "";
     end
 
-    output_save_name = strjoin([damage_or_incident,location_considered,normalise_str,rainfall_source,input_string,version,PRC_enabled_string],"_");
+    final_string_array = [normalise_str,rainfall_source,input_string,PRC_enabled_string];
+
+    final_string_array = final_string_array(final_string_array ~= "");
+
+    output_save_name = strjoin(final_string_array,"_");
 end
 
 

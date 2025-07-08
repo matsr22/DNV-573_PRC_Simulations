@@ -1,4 +1,4 @@
-function Main_Algorithm(config,folder_save_location,global_run_number)
+function Main_Algorithm(config,global_run_number)
 % ---------------------------
 % Analysis - Main Algorithm
 % ---------------------------
@@ -150,9 +150,10 @@ disp('Incubation Time Predicted:')
 
 disp(strip_hours(strip_index))
 
-str = sprintf('%g\t', strip_hours);
-str(end) = [];  % remove trailing tab
-clipboard('copy', str);  % copy to clipboard
+years = strip_hours / (365.25 * 24);
+formatted_values = arrayfun(@(x) sprintf('& %+0.1f ', x), years, 'UniformOutput', false);
+latex_row = [strjoin(formatted_values) '\\'];
+clipboard('copy', latex_row);
 
 if config.enable_PRC
     Save_Close_PRC_data(uncurt_damage,total_damage,data_quantity_days,strip_hours,wind_velocities,config,AEP_uncurt,AEP_curt,time_curtailed,folder_save_location,global_run_number);

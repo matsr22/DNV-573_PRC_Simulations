@@ -71,6 +71,6 @@ for k = 1:length(figHandles)
     end
 
     savedName = fig.UserData;
-    Save_Fig_Validated(fig, folder_save_location+savedName);
+    Save_Fig_Validated(fig, savedName);
 end
 end

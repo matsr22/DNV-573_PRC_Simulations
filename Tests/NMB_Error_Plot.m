@@ -7,7 +7,7 @@ addpath("..");
 
 DT = 1; % Controls what time resolution is used for the simulation
 
-location_considered = "Lampedusa";
+location_considered = "Lancaster";
 
 
 structure_filt = struct2cell(load(append("..\Simulation_Data\",location_considered,"\",num2str(DT),"min_data_filt.mat")));
@@ -119,7 +119,7 @@ figure('Position',[403 121 820 505]);
 hold on;
 
 
-errorbar(x, data_series(1,:), std_series(1,:), 'g', 'LineWidth', 1.5, 'DisplayName', 'small D');
+errorbar(x, data_series(1,:), std_series(1,:), 'r', 'LineWidth', 1.5, 'DisplayName', 'small D');
 errorbar(x, data_series(2,:), std_series(2,:), 'k', 'LineWidth', 1.5, 'DisplayName', 'medium D');
 errorbar(x, data_series(3,:), std_series(3,:), 'b', 'LineWidth', 1.5, 'DisplayName', 'large D');
 

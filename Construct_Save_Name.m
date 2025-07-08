@@ -16,10 +16,8 @@ function output_save_name = Construct_Save_Name(normalise,use_best_dist,enable_P
 
     input_string = input_types(ceil(fdf_variable_chosen/2));
     
-    if enable_PRC && mod(fdf_variable_chosen,2) == 1 
+    if enable_PRC
         PRC_enabled_string = "PRC";
-    elseif mod(fdf_variable_chosen,2) == 1 
-        PRC_enabled_string = "UNCURT";
     else
         PRC_enabled_string = "";
     end

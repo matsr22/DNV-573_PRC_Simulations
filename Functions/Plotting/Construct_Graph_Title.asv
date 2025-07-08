@@ -7,20 +7,18 @@ function [output_title] = Construct_Graph_Title(normalise,fdf_variable_chosen)
         % Normalised (Divided by total sum value)
         if fdf_variable_chosen == 2
             output_title = '$\log_{10}(n_v/n_{v,T})$';
-        elseif mod(fdf_variable_chosen,2) == 0 
+        if mod(fdf_variable_chosen,2) == 0 
             % Incident Droplets
-            output_title = '$\log_{10}(n_{O}/n_{O,T})$';
+            output_title = '$\log_{10}(n_{}/n_{v,T})$';
         else
             % Damage
             output_title = '$D_s/D_{s,T}$';
         end
     else
         % Unnormalised 
-        if fdf_variable_chosen == 2
-            output_title = '$\log_{10}(n_v)$';
-        elseif mod(fdf_variable_chosen,2) == 0     
+        if mod(fdf_variable_chosen,2) == 0     
             % Incident Droplets
-            output_title = '$\log_{10}(n_o)$';
+            output_title = '$\log_{10}(n_v)$';
         else
             % Damage
             output_title = '$D_s$';

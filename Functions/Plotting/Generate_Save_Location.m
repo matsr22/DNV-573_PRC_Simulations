@@ -17,7 +17,7 @@ end
 if config.query_doing_PRC_analysis == "PRC"
 
     
-    base_path = append("C:\Users\matth\Documents\MATLAB\DNV matlab code\Plots\Final Results\",config.query_doing_PRC_analysis,"\",config.version_number,"\",config.location_considered,"\");
+    base_path = append("C:\Users\matth\Documents\MATLAB\DNV matlab code\Plots\Final Article Results\",config.query_doing_PRC_analysis,"\",config.version_number,"\",config.location_considered,"\");
 
     if ~config.enable_PRC % Ensure that preliminary assesment can be made before 
         query_iterate_run_number = true;
@@ -29,7 +29,7 @@ if config.query_doing_PRC_analysis == "PRC"
     folder_save_location = append(base_path,"\",rainfall_type_str,"\Run_Number_",string(global_run_number),"\");
 else
 
-    folder_save_location = append("C:\Users\matth\Documents\MATLAB\DNV matlab code\Plots\Final Results\",config.query_doing_PRC_analysis,"\",config.version_number,"\",config.location_considered,"\",plot_type_str,"\");
+    folder_save_location = append("C:\Users\matth\Documents\MATLAB\DNV matlab code\Plots\Final Article Results\",config.query_doing_PRC_analysis,"\",config.version_number,"\",config.location_considered,"\",plot_type_str,"\");
     global_run_number = [];
 end
 end

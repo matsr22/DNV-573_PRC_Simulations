@@ -1,0 +1,13 @@
+\begin{table}[!h]
+\centering
+%\caption{Coating lifetime prediction of considered strips for reference erosion analysis.}
+%\label{tab:inc_1}
+\begin{tabular}{|c|c|}
+\hline
+Location & AEP (kWh)\\ \hline
+Lancaster & 49561\\
+Lampedusa & 56433\\
+North Sea & 77923 \\
+\hline
+\end{tabular}
+\end{table}

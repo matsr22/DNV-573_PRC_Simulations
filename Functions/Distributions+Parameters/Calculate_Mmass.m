@@ -15,7 +15,7 @@ function [median_d_bins,median_d_mid,medians] = Calculate_Mmass(d_bins,n_droplet
         [~, median_idx] = max(mask, [], 2); % Find location of first point over 50%
 
 
-        medians = d_calc(median_idx)'; % Inverted to ensure dimensional consistency 
+        medians = d_calc(median_idx)'; % Transposed to ensure dimensional consistency 
 
         set_0s = half_total_waters == 0;
         medians(set_0s) = 0;

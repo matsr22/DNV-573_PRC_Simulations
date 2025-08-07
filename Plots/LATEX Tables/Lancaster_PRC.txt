@@ -1,0 +1,11 @@
+\begin{tabular}{|l|cc|cccc|}
+\hline
+ Method &Par\textsubscript{cut}  & Life [yr] & $\Delta$ Life [\%] & AEP loss [\%] & Time Operational [\%] & PRC Enabled [\%] \\ \hline
+no PRC & - & 1.04 & 0 & 0 & 85.1 & 0 \\      
+$D_{mass}$ (meas)& 0.703 & 2.07 & 99.8 & 1.46 & 85.1 & 5.19 \\
+$D_{mass}$ (Best) &0.999 & 2.07 & 100 & 0.865 & 85.1 & 3.09 \\
+R (meas)& 0.695 & 2.07 & 100 & 0.865 & 85.1 & 3.09 \\
+Ideal & - & 2.07 & 99.8 & 0.83 & 85.1 & 2.58 \\
+\hline
+\end{tabular}
+\end{table}

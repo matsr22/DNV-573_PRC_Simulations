@@ -48,6 +48,7 @@ terminal_v_bins = [0 imported_structure{3} 20]; % The bins are provided for both
 % Use the midpoint for both
 d_calc = (d_bins(1:end-1) + d_bins(2:end))./2; 
 
+
 if ommit_first_droplets
     % Go through both dsd and svd and clear to 0 any values assosiated with
     % the first bins

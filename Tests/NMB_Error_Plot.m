@@ -120,8 +120,8 @@ hold on;
 
 
 errorbar(x, data_series(1,:), std_series(1,:), 'r', 'LineWidth', 1.5, 'DisplayName', 'small D');
-errorbar(x, data_series(2,:), std_series(2,:), 'k', 'LineWidth', 1.5, 'DisplayName', 'medium D');
-errorbar(x, data_series(3,:), std_series(3,:), 'b', 'LineWidth', 1.5, 'DisplayName', 'large D');
+errorbar(x, data_series(2,:), std_series(2,:), 'b--', 'LineWidth', 1.5, 'DisplayName', 'medium D');
+errorbar(x, data_series(3,:), std_series(3,:), 'k--', 'LineWidth', 1.5, 'DisplayName', 'large D');
 
 yline(0, '--', 'Color', [0.5 0.5 0.5],'HandleVisibility', 'off');
 

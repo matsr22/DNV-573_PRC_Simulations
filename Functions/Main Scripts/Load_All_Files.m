@@ -1,4 +1,4 @@
-function [suffix2,d_calc,d_bins,data_quantity_days,n_droplets_air,wind_velocities] = Load_All_Files(config,suffix)
+function [suffix2,d_calc,d_bins,data_quantity_days,n_droplets_air,wind_velocities,wind_droplet_table] = Load_All_Files(config,suffix)
 % Modifies the file accessed to be that specific to the hub height extrapolation
 % required of each turbine. 5MW not added as this is not yet relevant to
 % analysis we are doing. 
@@ -7,7 +7,12 @@ if config.use_extrapolated_wind_data
         suffix2 = "_119_ext";
     elseif config.turbine_used == "15MW"
         suffix2 = "_150_ext";
+    
+    else
+        suffix2 = ""; % FOR USE WITH THE 5MW turbine only
     end
+else
+    suffix2 = "";
 end
 
 %

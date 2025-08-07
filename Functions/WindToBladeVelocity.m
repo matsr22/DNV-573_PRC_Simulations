@@ -1,17 +1,15 @@
 function [velocity,power] = WindToBladeVelocity(input_windspeed,radius,turbine_power,curtailing_percentage,curtailing_locations)
     
     if ~(turbine_power == "15MW") || nargin<4 % PRC only currently coded for 15MW turbine
-    WTDF = load(append("Simulation_Data\Turbine_Curves\Turbine_Data_",turbine_power,".mat"));
-    W_sp = WTDF.windSpeed;
-    omega = WTDF.omega;
-    power = 0;
+    [standard_turbine_wind, standard_turbine_omega,standard_turbine_power] = load_curves(append("Simulation_Data\Turbine_Curves\ROSCO.mat"));
 
-    interp_omega = interp1(W_sp,omega,input_windspeed); % Could change the interpolation method later
-
+    interp_omega = interp1(standard_turbine_wind,standard_turbine_omega,input_windspeed); % Could change the interpolation method later
+    
+    power = interp1(standard_turbine_wind,standard_turbine_power,input_windspeed);
     velocity = radius*interp_omega;
     else
     
-     [standard_turbine_wind, standard_turbine_omega,standard_turbine_power] = load_curves(append("Simulation_Data\Turbine_Curves\Uncurtailed_",string(turbine_power),".mat"));
+     [standard_turbine_wind, standard_turbine_omega,standard_turbine_power] = load_curves(append("Simulation_Data\Turbine_Curves\ROSCO.mat"));
 
 
      interp_standard_omega = interp1(standard_turbine_wind,standard_turbine_omega,input_windspeed); % Could change the interpolation method later

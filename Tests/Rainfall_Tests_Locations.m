@@ -3,6 +3,8 @@ clc;
 close all;
 
 
+addpath(genpath('..\Functions\'))
+
 % Gives total rainfall for each location from measured value
 
 

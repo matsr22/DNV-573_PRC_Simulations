@@ -71,7 +71,7 @@ classdef Config < handle
         end
 
         function Set_Location(self,location_name)
-            if location_name == "Lancaster" || location_name == "Lampedusa"
+            if location_name == "Lancaster" || location_name == "Lampedusa"  || location_name == "Lancaster_30"  || location_name == "Lancaster_60"
                 self.use_best_distribution_simulation = false;
             elseif location_name == "North_Sea"
                 self.use_best_distribution_simulation = true; % We can only simulate with the best distribution for the north sea 

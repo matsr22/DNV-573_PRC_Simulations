@@ -4,7 +4,7 @@ addpath(genpath('Functions\'));
 
 config = Config();
 
-config.version_number = "Final_Results_V1";
+config.version_number = "Thesis-Temporal-Variation";
 config.normalise_plot = 1;
 % Control if BEST is used for curtailing locations
 config.use_best_distribution_PRC = false;
@@ -13,9 +13,10 @@ config.use_best_distribution_PRC = false;
 
 config.query_doing_PRC_analysis = "PRC";
 
-config.curtailing_wind_speed =9;
+config.curtailing_wind_speed =8;
+config.use_extrapolated_wind_data = false;
 
-location_considered = "North_Sea";
+location_considered = "Lancaster_60";
 
 if config.use_best_distribution_PRC && location_considered == "North_Sea"
     config.use_best_distribution_simulation = true;

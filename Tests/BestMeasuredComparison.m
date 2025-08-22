@@ -2,10 +2,10 @@
 close all;
 clear all;
 addpath('..'); % Ensures functions from parent folder can be used in this folder
-
+addpath(genpath('..\Functions\'))
 DT = 10; % Specifies temporal resolution of data used
 
-location_considered = "Lampedusa";
+location_considered = "Lancaster";
 
 imported_structure = struct2cell(load(append("..\Simulation_Data\",location_considered,"\",string(DT),"min_data_filt.mat")));
 
@@ -44,9 +44,13 @@ sum_droplets_dsd_measured = sum_droplets_dsd_measured./t_v_from_diameters;
 
 sum_droplets_dsd_measured = (sum_droplets_dsd_measured ./ (DT*60))';
 
-plot(d_calc, sum_droplets_dsd_best, '-ko', 'MarkerFaceColor', 'k'); % Plot the Best Results
+f = figure();
+
+plot(d_calc, sum_droplets_dsd_best, '-ko', 'MarkerFaceColor', 'k','MarkerSize',6); % Plot the Best Results
 hold on;
-plot(d_calc,sum_droplets_dsd_measured , '--ro', 'MarkerFaceColor', 'r'); % Plot the Measured Results 
+plot(d_calc,sum_droplets_dsd_measured , '--ro', 'MarkerFaceColor', 'r','MarkerSize',6); % Plot the Measured Results 
+
+f.Position = [100 50 425 300];
 
 best_total = sum(sum_droplets_dsd_best)
 measured_total = sum(sum_droplets_dsd_measured)
@@ -57,8 +61,11 @@ ax = gca;
 ax.YMinorGrid = 'off';
 ax.XMinorGrid = 'off';
 
+ax.YScale = "log";
+
 ax.YMinorTick = 'off';
 ax.XMinorTick = 'off';
 
+xlim([0 5]);
 xlabel('Droplet Diameter (mm)');
-ylabel('Damage (Years^{-1})');
+ylabel('N_m,N_B [mm^{-1} m^{-3}]','Interpreter','tex');

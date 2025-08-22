@@ -17,4 +17,5 @@ config.location_considered = "Lancaster";
 config.plot_fdf = false;
 config.use_extrapolated_wind_data = false;
 config.consider_terminal_velocities = true;
+config.DT = 60;
 Main_Algorithm(config);
